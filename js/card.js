@@ -192,8 +192,14 @@ async function generateCardPDF() {
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100, 110, 120);
-    doc.text('Official Member Identification Card', 105, 31, { align: 'center' });
-    doc.text(`Member: ${activeCardMember.name} (${activeCardMember.memberId})`, 105, 37, { align: 'center' });
+    const hasBengali = (str) => /[\u0980-\u09FF]/.test(str || '');
+    const safeDisplayName = (activeCardMember.nameEn && !hasBengali(activeCardMember.nameEn))
+      ? activeCardMember.nameEn
+      : (!hasBengali(activeCardMember.name) ? activeCardMember.name : '');
+    const memberSubtitle = safeDisplayName
+      ? `Member: ${safeDisplayName} (${activeCardMember.memberId})`
+      : `Member Identification Record: ${activeCardMember.memberId}`;
+    doc.text(memberSubtitle, 105, 37, { align: 'center' });
 
     // Standard card dimensions in mm: 85.6mm x 53.98mm
     const cardWidth = 85.6;

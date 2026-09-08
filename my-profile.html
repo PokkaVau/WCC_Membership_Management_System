@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en" class="no-theme-transition">
+<head>
+  <meta charset="UTF-8" />
+  <script>
+    (function() {
+      try {
+        var t = localStorage.getItem('wcc_theme_preference_v2') || 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+        document.documentElement.style.colorScheme = t;
+      } catch(e) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.documentElement.style.colorScheme = 'dark';
+      }
+      requestAnimationFrame(function() {
+        setTimeout(function() {
+          document.documentElement.classList.remove('no-theme-transition');
+        }, 50);
+      });
+    })();
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://script.google.com https://script.googleusercontent.com;" />
+  <title>My Member Profile - We Can Change (WCC)</title>
+  <meta name="description" content="Member self-service portal to review profile, update contact and address, download official PDF, and view verification QR." />
+  <link rel="icon" type="image/png" href="assets/logo/WCC_logo.png" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="css/members.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    .member-portal-wrapper {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 3rem;
+    }
+
+    .portal-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 0 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 2rem;
+    }
+
+    .portal-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      text-decoration: none;
+    }
+
+    .portal-logo {
+      width: 44px;
+      height: 44px;
+    }
+
+    .portal-brand-text h2 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0;
+    }
+
+    .portal-brand-text p {
+      font-size: 0.75rem;
+      color: var(--wcc-gold);
+      margin: 0;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .portal-actions-strip {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .audit-notice-banner {
+      background: rgba(241, 173, 26, 0.08);
+      border: 1px solid rgba(241, 173, 26, 0.25);
+      border-radius: var(--radius-md);
+      padding: 0.85rem 1.25rem;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="member-portal-wrapper">
+    <!-- Top Navigation Bar -->
+    <header class="portal-topbar">
+      <a href="my-profile.html" class="portal-brand">
+        <img src="assets/logo/WCC_logo.png" alt="WCC Logo" class="portal-logo" />
+        <div class="portal-brand-text">
+          <h2>WE CAN CHANGE (WCC)</h2>
+          <p>Member Self-Service Portal</p>
+        </div>
+      </a>
+
+      <div class="portal-actions-strip">
+        <button type="button" class="theme-toggle-btn" id="themeToggleBtn" title="Toggle Theme">☀️</button>
+        <button type="button" onclick="AUTH.logout()" class="btn btn-sm btn-outline-gold" title="Sign Out">
+          <span>🚪</span> Sign Out
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Member Profile Area -->
+    <main id="memberProfileContent">
+      <!-- Loading State -->
+      <div id="portalLoading" style="text-align:center; padding: 4rem 1rem;">
+        <div class="spinner" style="width: 38px; height: 38px; border-width: 3px; color: var(--wcc-gold); margin-bottom: 1rem;"></div>
+        <p style="color: var(--text-muted);">Loading your membership profile...</p>
+      </div>
+
+      <!-- Content State -->
+      <div id="portalContainer" style="display: none;">
+        <!-- Profile Hero Banner -->
+        <div class="profile-hero">
+          <div class="profile-identity">
+            <img 
+              id="myPhoto" 
+              src="assets/images/default-avatar.svg" 
+              alt="My Photo" 
+              class="profile-photo-large" 
+            />
+            <div class="profile-name-group">
+              <h1 class="profile-fullname" id="myName">Member Name</h1>
+              <span class="profile-id-tag" id="myMemberId">WCC-0000-0000</span>
+              <div id="myStatusBadge"></div>
+            </div>
+          </div>
+
+          <!-- Quick Action Buttons -->
+          <div class="profile-action-bar">
+            <button type="button" id="btnEditMyProfile" class="btn btn-primary" title="Update Your Profile Information">
+              <span>✏️</span> Edit My Details
+            </button>
+            <button type="button" id="btnDownloadMyPdf" class="btn btn-crimson" title="Download Official A4 PDF Document">
+              <span>📄</span> Download My PDF
+            </button>
+            <button type="button" id="btnViewMyQr" class="btn btn-outline-gold" title="View Verification QR">
+              <span>📱</span> Verification QR
+            </button>
+          </div>
+        </div>
+
+        <!-- Grouped Information Cards -->
+        <div class="profile-sections-grid">
+          <!-- Personal & Contact -->
+          <div class="profile-col-8">
+            <!-- Personal & Contact Information -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+              <h3 class="profile-section-title">
+                <span>👤</span> Personal & Contact Details (ব্যক্তিগত তথ্য)
+              </h3>
+              <div class="info-grid">
+                <div class="info-item">
+                  <span class="info-label">Full Name (English)</span>
+                  <span class="info-value" id="valName">-</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">পূর্ণ নাম (বাংলা)</span>
+                  <span class="info-value" id="valNameBn">-</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Father's Name (পিতার নাম)</span>
+                  <span class="info-value" id="valFather">-</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Mother's Name (মাতার নাম)</span>
+                  <span class="info-value" id="valMother">-</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">NID / Birth Reg (এনআইডি / জন্ম সনদ)</span>
+                  <span class="info-value" id="valNid">-</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Blood Group (রক্তের গ্রুপ)</span>
+                  <span class="info-value" id="valBloodGroup">-</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Mobile Phone (মোবাইল)</span>
+                  <span class="info-value" id="valPhone">-</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Email Address (ইমেইল)</span>
+                  <span class="info-value" id="valEmail">-</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Date of Birth (জন্ম তারিখ)</span>
+                  <span class="info-value" id="valDob">-</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Gender (লিঙ্গ)</span>
+                  <span class="info-value" id="valGender">-</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Residential Addresses -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+              <h3 class="profile-section-title">
+                <span>📍</span> Residential Addresses (ঠিকানা)
+              </h3>
+              <div class="info-grid">
+                <div class="info-item" style="grid-column: 1 / -1;">
+                  <span class="info-label">Present Address (বর্তমান ঠিকানা)</span>
+                  <span class="info-value" id="valPresentAddress">-</span>
+                </div>
+                <div class="info-item" style="grid-column: 1 / -1;">
+                  <span class="info-label">Permanent Address (স্থায়ী ঠিকানা)</span>
+                  <span class="info-value" id="valPermanentAddress">-</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Academic Background -->
+            <div class="card">
+              <h3 class="profile-section-title">
+                <span>🎓</span> Academic Background (শিক্ষাগত তথ্য)
+              </h3>
+              <div class="info-grid" id="profileEduGrid">
+                <!-- Dynamically populated based on currently studying status -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Professional & WCC Registry Column -->
+          <div class="profile-col-4">
+            <div class="card" style="margin-bottom: 1.5rem;">
+              <h3 class="profile-section-title">
+                <span>💼</span> Career & Workplace (পেশাগত তথ্য)
+              </h3>
+              <div class="info-grid" style="grid-template-columns: 1fr;">
+                <div class="info-item">
+                  <span class="info-label">Profession (পেশা)</span>
+                  <span class="info-value" id="valProfession">-</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Workplace (কর্মস্থল / প্রতিষ্ঠান)</span>
+                  <span class="info-value" id="valWorkplace">-</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3 class="profile-section-title">
+                <span>🛡️</span> WCC Membership Record
+              </h3>
+              <div class="info-grid" style="grid-template-columns: 1fr;">
+                <div class="info-item">
+                  <span class="info-label">Membership Type</span>
+                  <span class="info-value" id="valMembershipType">General Member</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Assigned Wing</span>
+                  <span class="info-value" id="valWing">General</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Reason for Joining</span>
+                  <span class="info-value" id="valReason" style="font-size:0.85rem; line-height:1.4;">-</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Application Timestamp</span>
+                  <span class="info-value" id="valRegDate">-</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Official Status</span>
+                  <span class="info-value" id="valStatusText">-</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Audit Transparency Notice -->
+        <div class="audit-notice-banner">
+          <span style="font-size:1.25rem;">🔒</span>
+          <div>
+            <strong>Audit & Security Notice:</strong> 
+            All profile updates made in this portal directly sync with the <strong>WCC Members</strong> Google Sheet and are recorded in the <strong>Audit Log</strong> with timestamps.
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Edit Profile Modal -->
+  <div class="modal-overlay" id="editProfileModal" role="dialog" aria-modal="true">
+    <div class="modal-dialog" style="max-width: 650px;">
+      <div class="modal-header">
+        <h3 class="modal-title">✏️ Update My Profile</h3>
+        <button type="button" class="modal-close" id="btnCloseEditModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1.25rem;">
+          Keep your contact information up to date. Changes will save directly into the WCC Members database.
+        </p>
+
+        <form id="editProfileForm">
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="editPhone" class="form-label">Mobile Number (মোবাইল) *</label>
+              <input type="tel" id="editPhone" class="form-control" required />
+            </div>
+            <div class="form-group">
+              <label for="editEmail" class="form-label">Email Address (ইমেইল) *</label>
+              <input type="email" id="editEmail" class="form-control" required />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="editPresentAddress" class="form-label">Present Address (বর্তমান ঠিকানা)</label>
+            <input type="text" id="editPresentAddress" class="form-control" />
+          </div>
+
+          <div class="form-group">
+            <label for="editPermanentAddress" class="form-label">Permanent Address (স্থায়ী ঠিকানা)</label>
+            <input type="text" id="editPermanentAddress" class="form-control" />
+          </div>
+
+          <!-- Academic Information / শিক্ষাগত তথ্য Section with Dynamic Toggle -->
+          <div style="border-top: 1px solid var(--border-color); padding-top: 1.25rem; margin-top: 1.25rem;">
+            <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--wcc-gold); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+              <span>🎓</span> শিক্ষাগত তথ্য (Educational Information)
+            </h4>
+
+            <div class="form-group" style="margin-bottom: 0.5rem;">
+              <label class="form-label">আপনি কি বর্তমানে অধ্যয়নরত? (Currently Studying?)<span class="required-star">*</span></label>
+              <div class="radio-toggle-group">
+                <label class="radio-card-option" for="study_yes">
+                  <input id="study_yes" type="radio" name="currently_studying" value="হ্যাঁ" required />
+                  <span class="radio-card-label">📖 হ্যাঁ (অধ্যয়নরত)</span>
+                </label>
+                <label class="radio-card-option" for="study_no">
+                  <input id="study_no" type="radio" name="currently_studying" value="না" />
+                  <span class="radio-card-label">🎓 না (স্নাতক / পাশকৃত)</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Shown only when "হ্যাঁ" is selected -->
+            <div class="conditional-block" id="studyingYesBlock">
+              <div class="conditional-inner">
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <label for="editClassYear" class="form-label">কোন শ্রেণি/বর্ষে অধ্যয়নরত?<span class="required-star">*</span></label>
+                    <select id="editClassYear" class="form-control">
+                      <option value="">নির্বাচন করুন</option>
+                      <option value="৬ষ্ঠ শ্রেণি">৬ষ্ঠ শ্রেণি</option>
+                      <option value="৭ম শ্রেণি">৭ম শ্রেণি</option>
+                      <option value="৮ম শ্রেণি">৮ম শ্রেণি</option>
+                      <option value="৯ম শ্রেণি">৯ম শ্রেণি</option>
+                      <option value="১০ম শ্রেণি">১০ম শ্রেণি</option>
+                      <option value="SSC">SSC</option>
+                      <option value="একাদশ শ্রেণি">একাদশ শ্রেণি</option>
+                      <option value="দ্বাদশ শ্রেণি">দ্বাদশ শ্রেণি</option>
+                      <option value="HSC">HSC</option>
+                      <option value="Diploma">Diploma</option>
+                      <option value="১ম বর্ষ">১ম বর্ষ</option>
+                      <option value="২য় বর্ষ">২য় বর্ষ</option>
+                      <option value="৩য় বর্ষ">৩য় বর্ষ</option>
+                      <option value="৪র্থ বর্ষ">৪র্থ বর্ষ</option>
+                      <option value="Masters">Masters</option>
+                      <option value="অন্যান্য">অন্যান্য</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="editCurrentInstitution" class="form-label">বর্তমান প্রতিষ্ঠানের নাম<span class="required-star">*</span></label>
+                    <input type="text" id="editCurrentInstitution" class="form-control" placeholder="যেমন: ঢাকা কলেজ / বরিশাল বিশ্ববিদ্যালয়" />
+                  </div>
+                </div>
+
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <label for="editLastPublicExam" class="form-label">বিগত পাবলিক পরীক্ষা</label>
+                    <select id="editLastPublicExam" class="form-control">
+                      <option value="">নির্বাচন করুন</option>
+                      <option value="PSC / প্রাথমিক শিক্ষা সমাপনী">PSC / প্রাথমিক শিক্ষা সমাপনী</option>
+                      <option value="JSC / জুনিয়র স্কুল সার্টিফিকেট">JSC / জুনিয়র স্কুল সার্টিফিকেট</option>
+                      <option value="SSC / সমমান">SSC / সমমান</option>
+                      <option value="Dakhil / দাখিল">Dakhil / দাখিল</option>
+                      <option value="HSC / সমমান">HSC / সমমান</option>
+                      <option value="Alim / আলিম">Alim / আলিম</option>
+                      <option value="Diploma in Engineering">Diploma in Engineering</option>
+                      <option value="Diploma in Medical Technology">Diploma in Medical Technology</option>
+                      <option value="O-Level">O-Level</option>
+                      <option value="A-Level">A-Level</option>
+                      <option value="সমমানের অন্যান্য পরীক্ষা">সমমানের অন্যান্য পরীক্ষা</option>
+                      <option value="কোনো পাবলিক পরীক্ষা দেওয়া হয়নি">কোনো পাবলিক পরীক্ষা দেওয়া হয়নি</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="editPublicExamResult" class="form-label">পাবলিক পরীক্ষার ফলাফল</label>
+                    <input type="text" id="editPublicExamResult" class="form-control" placeholder="যেমন: GPA 5.00 / CGPA 3.75 / 80%" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Shown only when "না" is selected -->
+            <div class="conditional-block" id="studyingNoBlock">
+              <div class="conditional-inner">
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <label for="editLastQualification" class="form-label">সর্বশেষ শিক্ষাগত যোগ্যতা<span class="required-star">*</span></label>
+                    <select id="editLastQualification" class="form-control">
+                      <option value="">নির্বাচন করুন</option>
+                      <option value="SSC / সমমান">SSC / সমমান</option>
+                      <option value="HSC / সমমান">HSC / সমমান</option>
+                      <option value="Diploma">Diploma</option>
+                      <option value="Bachelor / Honours">Bachelor / Honours</option>
+                      <option value="Masters">Masters</option>
+                      <option value="O-Level">O-Level</option>
+                      <option value="A-Level">A-Level</option>
+                      <option value="অন্যান্য">অন্যান্য</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="editLastResult" class="form-label">সর্বশেষ একাডেমিক ফলাফল<span class="required-star">*</span></label>
+                    <input type="text" id="editLastResult" class="form-control" placeholder="যেমন: GPA 5.00 / CGPA 3.75 / 80%" />
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="editLastInstitution" class="form-label">সর্বশেষ প্রতিষ্ঠানের নাম<span class="required-star">*</span></label>
+                  <input type="text" id="editLastInstitution" class="form-control" placeholder="যেমন: ঢাকা বিশ্ববিদ্যালয়" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="editProfession" class="form-label">Profession (পেশা)</label>
+              <input type="text" id="editProfession" class="form-control" />
+            </div>
+            <div class="form-group">
+              <label for="editWorkplace" class="form-label">Workplace (কর্মস্থল)</label>
+              <input type="text" id="editWorkplace" class="form-control" />
+            </div>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="editGender" class="form-label">Gender (লিঙ্গ)</label>
+              <select id="editGender" class="form-control">
+                <option value="">Select Gender</option>
+                <option value="Male">Male (পুরুষ)</option>
+                <option value="Female">Female (মহিলা)</option>
+                <option value="Other">Other (অন্যান্য)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="editBloodGroup" class="form-label">Blood Group</label>
+              <select id="editBloodGroup" class="form-control">
+                <option value="">Select</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-grid-1" style="margin-bottom:1rem;">
+            <div class="form-group">
+              <label class="form-label">Profile Photo (Upload to Google Drive)</label>
+              <div style="display:flex; gap:0.75rem; align-items:center;">
+                <div style="width:52px; height:52px; border-radius:50%; border:2px solid var(--wcc-gold); overflow:hidden; background:var(--bg-card); flex-shrink:0; display:flex; align-items:center; justify-content:center;">
+                  <img id="editPhotoPreview" src="assets/images/default-avatar.svg" alt="Preview" style="width:100%; height:100%; object-fit:cover;" />
+                </div>
+                <div style="flex:1;">
+                  <input type="file" id="editPhotoFileInput" accept="image/jpeg,image/png,image/webp" style="display:none;" />
+                  <button type="button" class="btn btn-secondary btn-sm" id="btnTriggerPhotoUpload" style="width:100%; font-size:0.78rem;">
+                    📁 Choose New Photo
+                  </button>
+                  <small id="photoUploadFeedback" style="display:block; margin-top:3px; font-size:0.72rem; color:var(--text-muted);">
+                    Max 5MB (Auto-compressed & stored in Google Drive)
+                  </small>
+                </div>
+              </div>
+              <input type="hidden" id="editPhoto" />
+            </div>
+          </div>
+
+          <!-- Password Change Option -->
+          <div style="border-top:1px solid var(--border-subtle); padding-top:1rem; margin-top:1rem;">
+            <label for="editNewPassword" class="form-label" style="color:var(--wcc-gold);">Change Portal Password (Leave blank to keep current)</label>
+            <input type="password" id="editNewPassword" class="form-control" placeholder="Enter new password (min. 6 chars)" minlength="6" autocomplete="new-password" />
+          </div>
+
+          <div class="modal-footer" style="padding-top:1.5rem; margin-top:1.5rem;">
+            <button type="button" id="btnCancelEditModal" class="btn btn-secondary">Cancel</button>
+            <button type="submit" id="btnSaveProfileChanges" class="btn btn-primary">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR Verification Modal -->
+  <div class="modal-overlay" id="qrModal" role="dialog" aria-modal="true">
+    <div class="modal-dialog" style="max-width: 420px; text-align: center;">
+      <div class="modal-header">
+        <h3 class="modal-title">My Verification QR</h3>
+        <button type="button" class="modal-close" id="btnCloseQrModal">&times;</button>
+      </div>
+      <div class="modal-body" style="display:flex; flex-direction:column; align-items:center;">
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1.25rem;">
+          Anyone scanning this QR code can verify your active membership in We Can Change (WCC).
+        </p>
+        
+        <div id="qrCodeContainer" style="background:#FFF; padding:12px; border-radius:10px; border:2px solid var(--wcc-gold); margin-bottom:1.25rem;"></div>
+
+        <div class="form-group" style="width:100%; text-align:left;">
+          <label class="form-label">Verification URL</label>
+          <div style="display:flex; gap:0.5rem;">
+            <input type="text" id="qrLinkText" class="form-control" readonly style="font-size:0.75rem;" />
+            <button type="button" id="btnCopyQrLink" class="btn btn-secondary btn-sm">Copy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Application Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/mockData.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/pdf.js"></script>
+  <script src="js/qr.js"></script>
+  <script>
+    let activeMemberData = null;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      AUTH.requireMemberPortal();
+      AUTH.initTheme();
+
+      const currentUser = AUTH.getCurrentUser();
+      if (!currentUser) return;
+
+      const memberId = currentUser.memberId || currentUser.email;
+
+      try {
+        let member = await API.fetchMemberById(memberId);
+
+        // Fallback: search by email
+        if (!member && currentUser.email) {
+          const all = await API.fetchMembers();
+          member = all.find(m => m.email && m.email.toLowerCase() === currentUser.email.toLowerCase());
+        }
+
+        if (!member) {
+          // If admin is previewing or member not found in list, build safe placeholder
+          member = {
+            memberId: memberId || 'WCC-PREVIEW',
+            name: currentUser.name || 'WCC Member',
+            email: currentUser.email || 'member@wecanchange.org',
+            phone: '+880 1700-000000',
+            bloodGroup: 'B+',
+            status: currentUser.status || 'Active',
+            district: 'Dhaka',
+            upazila: 'Dhanmondi',
+            membershipType: 'General Member',
+            formattedRegDate: '2026-01-01'
+          };
+        }
+
+        activeMemberData = member;
+        renderMemberProfile(member);
+        bindMemberActions(member);
+
+        document.getElementById('portalLoading').style.display = 'none';
+        document.getElementById('portalContainer').style.display = 'block';
+      } catch (err) {
+        console.error('Failed to load profile:', err);
+        UTILS.showToast('Unable to load member profile.', 'error');
+      }
+    });
+
+    function renderMemberProfile(m) {
+      document.getElementById('myName').textContent = m.name;
+      document.getElementById('myMemberId').textContent = m.memberId;
+      document.getElementById('myStatusBadge').innerHTML = UTILS.renderStatusBadge(m.status);
+
+      const photoEl = document.getElementById('myPhoto');
+      photoEl.src = m.photoUrl;
+      photoEl.onerror = () => { photoEl.src = CONFIG.ORG_INFO.defaultAvatarPath; };
+
+      // 1. Personal
+      document.getElementById('valName').textContent = m.name || '-';
+      document.getElementById('valNameBn').textContent = m.nameBn || m.name || '-';
+      document.getElementById('valFather').textContent = m.father || '-';
+      document.getElementById('valMother').textContent = m.mother || '-';
+      document.getElementById('valNid').textContent = m.nid || '-';
+      document.getElementById('valBloodGroup').innerHTML = UTILS.renderBloodBadge(m.bloodGroup);
+      document.getElementById('valPhone').textContent = m.phone || '-';
+      document.getElementById('valEmail').textContent = m.email || '-';
+      document.getElementById('valDob').textContent = m.formattedDob || m.dob || '-';
+      document.getElementById('valGender').textContent = m.gender || '-';
+
+      // 2. Addresses
+      document.getElementById('valPresentAddress').textContent = m.presentAddress || '-';
+      document.getElementById('valPermanentAddress').textContent = m.permanentAddress || '-';
+
+      // 3. Education (Dynamically rendered based on currently studying status)
+      const isStudying = (m.currentlyStudying === 'হ্যাঁ' || String(m.currentlyStudying).toLowerCase().includes('yes'));
+      const eduGrid = document.getElementById('profileEduGrid');
+      if (eduGrid) {
+        if (isStudying) {
+          eduGrid.innerHTML = `
+            <div class="info-item">
+              <span class="info-label">Currently Studying (অধ্যয়নরত?)</span>
+              <span class="info-value"><span class="badge badge-active">📖 হ্যাঁ (অধ্যয়নরত)</span></span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Class / Year (শ্রেণি / বর্ষ)</span>
+              <span class="info-value">${UTILS.escapeHTML(m.classYear || '-')}</span>
+            </div>
+            <div class="info-item" style="grid-column: 1 / -1;">
+              <span class="info-label">Current Institution (বর্তমান শিক্ষা প্রতিষ্ঠান)</span>
+              <span class="info-value">${UTILS.escapeHTML(m.currentInstitution || m.institution || '-')}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Last Public Exam (বিগত পাবলিক পরীক্ষা)</span>
+              <span class="info-value">${UTILS.escapeHTML(m.lastPublicExam || '-')}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Public Exam Result (পাবলিক পরীক্ষার ফলাফল)</span>
+              <span class="info-value">${UTILS.escapeHTML(m.publicExamResult || '-')}</span>
+            </div>
+          `;
+        } else {
+          eduGrid.innerHTML = `
+            <div class="info-item">
+              <span class="info-label">Currently Studying (অধ্যয়নরত?)</span>
+              <span class="info-value"><span class="badge" style="background: rgba(255,255,255,0.08); color: var(--text-muted); border: 1px solid var(--border-color);">🎓 না (স্নাতক / পাশকৃত)</span></span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Last Qualification (সর্বশেষ শিক্ষাগত যোগ্যতা)</span>
+              <span class="info-value">${UTILS.escapeHTML(m.lastQualification || m.degree || '-')}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Last Result (সর্বশেষ একাডেমিক ফলাফল)</span>
+              <span class="info-value">${UTILS.escapeHTML(m.lastResult || '-')}</span>
+            </div>
+            <div class="info-item" style="grid-column: 1 / -1;">
+              <span class="info-label">Last Institution (সর্বশেষ প্রতিষ্ঠানের নাম)</span>
+              <span class="info-value">${UTILS.escapeHTML(m.lastInstitution || '-')}</span>
+            </div>
+            ${m.lastPublicExam ? `
+            <div class="info-item">
+              <span class="info-label">Public Exam (বিগত পাবলিক পরীক্ষা)</span>
+              <span class="info-value">${UTILS.escapeHTML(m.lastPublicExam)}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Exam Result (পাবলিক পরীক্ষার ফলাফল)</span>
+              <span class="info-value">${UTILS.escapeHTML(m.publicExamResult || '-')}</span>
+            </div>` : ''}
+          `;
+        }
+      }
+
+      // 4. Professional & WCC
+      document.getElementById('valProfession').textContent = m.profession || '-';
+      document.getElementById('valWorkplace').textContent = m.workplace || m.organization || '-';
+      document.getElementById('valMembershipType').textContent = m.membershipType || 'General Member';
+      document.getElementById('valWing').textContent = m.wing || 'General Wing';
+      document.getElementById('valReason').textContent = m.reason || 'Not provided';
+      document.getElementById('valRegDate').textContent = m.formattedRegDate || m.registrationDate || m.timestamp || '2026';
+      document.getElementById('valStatusText').textContent = m.status || 'Active';
+    }
+
+    function bindMemberActions(member) {
+      // PDF Download
+      document.getElementById('btnDownloadMyPdf').addEventListener('click', async () => {
+        try {
+          UTILS.showToast('Generating your official member PDF...', 'info');
+          await PDF_GENERATOR.generateMemberPDF(member);
+        } catch (e) {
+          UTILS.showToast('Failed to generate PDF.', 'error');
+        }
+      });
+
+      // QR Modal
+      const qrModal = document.getElementById('qrModal');
+      document.getElementById('btnViewMyQr').addEventListener('click', () => {
+        const verifyUrl = `${CONFIG.VERIFY_BASE_URL}?id=${encodeURIComponent(member.memberId)}`;
+        document.getElementById('qrLinkText').value = verifyUrl;
+        const container = document.getElementById('qrCodeContainer');
+        container.innerHTML = '';
+        new QRCode(container, {
+          text: verifyUrl,
+          width: 170,
+          height: 170,
+          colorDark: '#0F1218',
+          colorLight: '#FFFFFF',
+          correctLevel: QRCode.CorrectLevel.H
+        });
+        qrModal.classList.add('active');
+      });
+
+      document.getElementById('btnCloseQrModal').addEventListener('click', () => qrModal.classList.remove('active'));
+      document.getElementById('btnCopyQrLink').addEventListener('click', () => {
+        navigator.clipboard.writeText(document.getElementById('qrLinkText').value);
+        UTILS.showToast('Verification URL copied!', 'success');
+      });
+
+      // Edit Profile Modal
+      const editModal = document.getElementById('editProfileModal');
+      const editBtn = document.getElementById('btnEditMyProfile');
+      const closeEditBtn = document.getElementById('btnCloseEditModal');
+      const cancelEditBtn = document.getElementById('btnCancelEditModal');
+      const editForm = document.getElementById('editProfileForm');
+
+      const studyRadios = editForm.querySelectorAll('input[name="currently_studying"]');
+      const studyingYesBlock = document.getElementById('studyingYesBlock');
+      const studyingNoBlock = document.getElementById('studyingNoBlock');
+      const YES_REQUIRED_IDS = ['editClassYear', 'editCurrentInstitution'];
+      const NO_REQUIRED_IDS = ['editLastQualification', 'editLastResult', 'editLastInstitution'];
+
+      function clearModalField(id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.value = '';
+        el.required = false;
+      }
+
+      function updateStudyBlocks(preserveValues = false) {
+        const checked = editForm.querySelector('input[name="currently_studying"]:checked');
+        const val = checked ? checked.value : null;
+
+        if (val === 'হ্যাঁ') {
+          studyingYesBlock.classList.add('open');
+          studyingNoBlock.classList.remove('open');
+          YES_REQUIRED_IDS.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.required = true;
+          });
+          NO_REQUIRED_IDS.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+              el.required = false;
+              if (!preserveValues) el.value = '';
+            }
+          });
+        } else if (val === 'না') {
+          studyingNoBlock.classList.add('open');
+          studyingYesBlock.classList.remove('open');
+          NO_REQUIRED_IDS.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.required = true;
+          });
+          YES_REQUIRED_IDS.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+              el.required = false;
+              if (!preserveValues) el.value = '';
+            }
+          });
+          if (!preserveValues) {
+            clearModalField('editLastPublicExam');
+            clearModalField('editPublicExamResult');
+          }
+        } else {
+          studyingYesBlock.classList.remove('open');
+          studyingNoBlock.classList.remove('open');
+          YES_REQUIRED_IDS.concat(NO_REQUIRED_IDS).forEach(clearModalField);
+        }
+      }
+
+      studyRadios.forEach(r => r.addEventListener('change', () => updateStudyBlocks(false)));
+
+      editBtn.addEventListener('click', () => {
+        document.getElementById('editPhone').value = member.phone || '';
+        document.getElementById('editEmail').value = member.email || '';
+        document.getElementById('editPresentAddress').value = member.presentAddress || '';
+        document.getElementById('editPermanentAddress').value = member.permanentAddress || '';
+
+        // Determine currently studying state
+        const isStudying = (member.currentlyStudying && (member.currentlyStudying === 'হ্যাঁ' || String(member.currentlyStudying).toLowerCase().includes('yes')));
+        const yesRadio = document.getElementById('study_yes');
+        const noRadio = document.getElementById('study_no');
+        if (isStudying) {
+          if (yesRadio) yesRadio.checked = true;
+        } else {
+          if (noRadio) noRadio.checked = true;
+        }
+
+        // Fill existing values
+        document.getElementById('editClassYear').value = member.classYear || '';
+        document.getElementById('editCurrentInstitution').value = member.currentInstitution || member.institution || '';
+        document.getElementById('editLastPublicExam').value = member.lastPublicExam || '';
+        document.getElementById('editPublicExamResult').value = member.publicExamResult || '';
+
+        document.getElementById('editLastQualification').value = member.lastQualification || member.degree || '';
+        document.getElementById('editLastResult').value = member.lastResult || '';
+        document.getElementById('editLastInstitution').value = member.lastInstitution || '';
+
+        // Apply expand/collapse and required attributes without wiping loaded data
+        updateStudyBlocks(true);
+
+        document.getElementById('editProfession').value = member.profession || '';
+        document.getElementById('editWorkplace').value = member.workplace || member.organization || '';
+        document.getElementById('editGender').value = member.gender || '';
+        document.getElementById('editBloodGroup').value = member.bloodGroup || '';
+        document.getElementById('editPhoto').value = member.photo || member.photoUrl || '';
+        document.getElementById('editPhotoPreview').src = member.photoUrl || member.photo || CONFIG.ORG_INFO.defaultAvatarPath;
+        document.getElementById('editNewPassword').value = '';
+        selectedPhotoFile = null;
+        document.getElementById('photoUploadFeedback').textContent = 'Max 5MB (Auto-compressed & stored in Google Drive)';
+        document.getElementById('photoUploadFeedback').style.color = 'var(--text-muted)';
+        editModal.classList.add('active');
+      });
+
+      // Photo Upload handling
+      let selectedPhotoFile = null;
+      const fileInput = document.getElementById('editPhotoFileInput');
+      const triggerBtn = document.getElementById('btnTriggerPhotoUpload');
+      const photoPreview = document.getElementById('editPhotoPreview');
+      const photoFeedback = document.getElementById('photoUploadFeedback');
+
+      if (triggerBtn && fileInput) {
+        triggerBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', async (e) => {
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+
+          try {
+            photoFeedback.textContent = 'Compressing image...';
+            photoFeedback.style.color = 'var(--wcc-gold)';
+            const compressed = await UTILS.compressImage(file, 800, 0.85);
+            selectedPhotoFile = compressed;
+            photoPreview.src = compressed.dataUrl;
+            photoFeedback.textContent = `✓ Ready to upload (${compressed.fileSizeKb} KB, resized to ${compressed.width}×${compressed.height}px)`;
+            photoFeedback.style.color = '#2ECC71';
+          } catch (err) {
+            photoFeedback.textContent = '⚠️ ' + (err.message || 'Failed to process image.');
+            photoFeedback.style.color = '#FF6B6B';
+            selectedPhotoFile = null;
+          }
+        });
+      }
+
+      const closeEdit = () => editModal.classList.remove('active');
+      closeEditBtn.addEventListener('click', closeEdit);
+      cancelEditBtn.addEventListener('click', closeEdit);
+
+      editForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const checkedStudy = editForm.querySelector('input[name="currently_studying"]:checked');
+        const studyVal = checkedStudy ? checkedStudy.value : 'না';
+
+        const saveBtn = document.getElementById('btnSaveProfileChanges');
+        saveBtn.classList.add('loading');
+        saveBtn.textContent = 'Saving to WCC Members Sheet...';
+
+        // 1. If new photo was picked, upload to Google Drive first
+        let drivePhotoUrl = document.getElementById('editPhoto').value.trim();
+        if (selectedPhotoFile) {
+          saveBtn.textContent = 'Uploading photo to Google Drive...';
+          const uploadRes = await API.uploadProfilePhoto(member.memberId, selectedPhotoFile, member.email);
+          if (uploadRes.success && uploadRes.photoUrl && uploadRes.photoUrl.startsWith('http')) {
+            drivePhotoUrl = uploadRes.photoUrl;
+            UTILS.showToast('Photo uploaded to Google Drive!', 'success');
+          } else {
+            UTILS.showToast(uploadRes.message || 'Photo upload to Drive failed.', 'error');
+          }
+        }
+
+        saveBtn.textContent = 'Updating WCC Members Sheet...';
+
+        const updates = {
+          phone: document.getElementById('editPhone').value.trim(),
+          email: document.getElementById('editEmail').value.trim(),
+          presentAddress: document.getElementById('editPresentAddress').value.trim(),
+          permanentAddress: document.getElementById('editPermanentAddress').value.trim(),
+          currentlyStudying: studyVal,
+          classYear: studyVal === 'হ্যাঁ' ? document.getElementById('editClassYear').value.trim() : '',
+          currentInstitution: studyVal === 'হ্যাঁ' ? document.getElementById('editCurrentInstitution').value.trim() : '',
+          lastPublicExam: studyVal === 'হ্যাঁ' ? document.getElementById('editLastPublicExam').value.trim() : (member.lastPublicExam || ''),
+          publicExamResult: studyVal === 'হ্যাঁ' ? document.getElementById('editPublicExamResult').value.trim() : (member.publicExamResult || ''),
+          lastQualification: studyVal === 'না' ? document.getElementById('editLastQualification').value.trim() : '',
+          lastResult: studyVal === 'না' ? document.getElementById('editLastResult').value.trim() : '',
+          lastInstitution: studyVal === 'না' ? document.getElementById('editLastInstitution').value.trim() : '',
+          profession: document.getElementById('editProfession').value.trim(),
+          workplace: document.getElementById('editWorkplace').value.trim(),
+          gender: document.getElementById('editGender').value,
+          bloodGroup: document.getElementById('editBloodGroup').value,
+          photo: (drivePhotoUrl && drivePhotoUrl.startsWith('http')) ? drivePhotoUrl : (member.photo || member.photoUrl || '')
+        };
+
+        const newPass = document.getElementById('editNewPassword').value.trim();
+        if (newPass) updates.newPassword = newPass;
+
+        const res = await API.updateMemberSelf(member.memberId, updates);
+        saveBtn.classList.remove('loading');
+        saveBtn.textContent = 'Save Changes';
+
+        if (res.success) {
+          UTILS.showToast('Profile updated in WCC Members sheet & logged in audit trail!', 'success');
+          // Update in-memory member
+          Object.assign(member, updates);
+          if (updates.photo) member.photoUrl = UTILS.convertGoogleDriveUrl(updates.photo);
+          renderMemberProfile(member);
+          closeEdit();
+        } else {
+          UTILS.showToast(res.message || 'Failed to update profile.', 'error');
+        }
+      });
+    }
+  </script>
+</body>
+</html>

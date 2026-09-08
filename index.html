@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en" class="no-theme-transition">
+<head>
+  <meta charset="UTF-8" />
+  <script>
+    (function() {
+      try {
+        var t = localStorage.getItem('wcc_theme_preference_v2') || 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+        document.documentElement.style.colorScheme = t;
+      } catch(e) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.documentElement.style.colorScheme = 'dark';
+      }
+      requestAnimationFrame(function() {
+        setTimeout(function() {
+          document.documentElement.classList.remove('no-theme-transition');
+        }, 50);
+      });
+    })();
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://script.google.com https://script.googleusercontent.com;" />
+  <title>Admin Login - WCC Membership Management System</title>
+  <meta name="description" content="Administrative login portal for We Can Change (WCC) Membership Management & Member Directory System." />
+  <link rel="icon" type="image/png" href="assets/logo/WCC_logo.png" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+  <style>
+    .login-page-wrapper {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      background: radial-gradient(circle at 50% 25%, #1D3557 0%, #0F1218 80%);
+    }
+
+    .login-card {
+      width: 100%;
+      max-width: 440px;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 2.5rem 2.25rem;
+      box-shadow: var(--shadow-lg);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .login-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 5px;
+      background: linear-gradient(90deg, var(--wcc-gold), var(--wcc-crimson));
+    }
+
+    .login-brand-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .login-logo {
+      width: 76px;
+      height: 76px;
+      margin: 0 auto 1rem;
+      display: block;
+      border-radius: 50%;
+      box-shadow: var(--shadow-gold);
+    }
+
+    .login-title {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      letter-spacing: -0.5px;
+    }
+
+    .login-subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    .login-alert {
+      display: none;
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-md);
+      margin-bottom: 1.25rem;
+      font-size: 0.85rem;
+      background-color: rgba(182, 42, 53, 0.15);
+      border: 1px solid rgba(182, 42, 53, 0.4);
+      color: #FF6B6B;
+    }
+
+    .form-options {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+      font-size: 0.85rem;
+    }
+
+    .remember-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      color: var(--text-secondary);
+    }
+
+    .remember-group input {
+      accent-color: var(--wcc-gold);
+      cursor: pointer;
+    }
+
+    .btn-fill {
+      width: 100%;
+      padding: 0.8rem;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-page-wrapper">
+    <div class="login-card">
+      <!-- Top-Right Dark/Light Mode Switch -->
+      <button type="button" class="theme-toggle-btn card-theme-toggle" id="themeToggleBtn" title="Toggle Dark/Light Mode" aria-label="Toggle Theme">☀️</button>
+
+      <div class="login-brand-header">
+        <img src="assets/logo/WCC_logo.png" alt="We Can Change (WCC) Logo" class="login-logo" />
+        <h1 class="login-title">We Can Change (WCC)</h1>
+        <p class="login-subtitle">Membership Management System Portal</p>
+      </div>
+
+      <div id="loginAlert" class="login-alert alert-error" role="alert">
+        <div class="alert-icon" id="loginAlertIcon">⛔</div>
+        <div class="alert-content">
+          <strong class="alert-title" id="loginAlertTitle">Authentication Failed</strong>
+          <div class="alert-message" id="loginAlertMsg">Invalid credentials entered.</div>
+        </div>
+      </div>
+
+      <form id="loginForm" autocomplete="on">
+        <div class="form-group">
+          <label for="usernameInput" class="form-label">Email, Phone, or Member ID</label>
+          <input 
+            type="text" 
+            id="usernameInput" 
+            class="form-control" 
+            placeholder="e.g. email@wecanchange.org, 017xxxxxxxx, or WCC-2026-0001" 
+            required 
+            autocomplete="username"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="passwordInput" class="form-label">Password</label>
+          <input 
+            type="password" 
+            id="passwordInput" 
+            class="form-control" 
+            placeholder="••••••••" 
+            required 
+            autocomplete="current-password"
+          />
+        </div>
+
+        <div class="form-options" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
+          <label class="remember-group" style="margin:0;">
+            <input type="checkbox" id="rememberMeCheckbox" checked />
+            <span>Remember me</span>
+          </label>
+          <a href="forgot-password.html" class="forgot-pwd-link" style="font-size:0.82rem; color:var(--wcc-gold); text-decoration:none; font-weight:600;">
+            🔑 Forgot Password?
+          </a>
+        </div>
+
+        <button type="submit" id="loginSubmitBtn" class="btn btn-primary btn-fill">
+          Sign In to Portal
+        </button>
+
+        <div style="text-align:center; margin-top:1.25rem; padding-top:1.25rem; border-top:1px solid var(--border-subtle);">
+          <span style="font-size:0.85rem; color:var(--text-muted);">Not registered yet as a member?</span>
+          <div style="margin-top:0.5rem;">
+            <a href="signup.html" class="btn btn-secondary btn-sm" style="display:inline-block; font-weight:600; color:var(--wcc-gold);">
+              📝 New Member Registration (Sign Up)
+            </a>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/mockData.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Redirect to dashboard/portal if session already active
+      AUTH.redirectIfAuthenticated();
+      AUTH.initTheme();
+
+      const form = document.getElementById('loginForm');
+      const submitBtn = document.getElementById('loginSubmitBtn');
+      const alertBox = document.getElementById('loginAlert');
+      const alertTitle = document.getElementById('loginAlertTitle');
+      const alertMsg = document.getElementById('loginAlertMsg');
+      const alertIcon = document.getElementById('loginAlertIcon');
+      const usernameInput = document.getElementById('usernameInput');
+      const passwordInput = document.getElementById('passwordInput');
+
+      function hideAlert() {
+        alertBox.classList.remove('show', 'alert-success', 'alert-error');
+        usernameInput.classList.remove('is-invalid');
+        passwordInput.classList.remove('is-invalid');
+      }
+
+      function showLoginError(title, message) {
+        hideAlert();
+        alertBox.classList.add('show', 'alert-error');
+        alertIcon.textContent = '⛔';
+        alertTitle.textContent = title || 'Authentication Failed';
+        alertMsg.textContent = message;
+        usernameInput.classList.add('is-invalid');
+        passwordInput.classList.add('is-invalid');
+
+        if (typeof UTILS !== 'undefined' && UTILS.showToast) {
+          UTILS.showToast(message, 'error');
+        }
+      }
+
+      usernameInput.addEventListener('input', () => {
+        usernameInput.classList.remove('is-invalid');
+      });
+      passwordInput.addEventListener('input', () => {
+        passwordInput.classList.remove('is-invalid');
+      });
+
+      // Check if newly registered member arrived via redirect
+      const urlParams = new URLSearchParams(window.location.search);
+      const regId = urlParams.get('registered');
+      if (regId) {
+        usernameInput.value = regId;
+        passwordInput.value = ''; // Ensure password field is clean for member's new password
+        alertBox.classList.add('show', 'alert-success');
+        alertIcon.textContent = '🎉';
+        alertTitle.textContent = 'Account Activated Successfully!';
+        alertMsg.textContent = `Your Member ID is ${regId}. Please enter your newly created password to sign in.`;
+        passwordInput.focus();
+      }
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = usernameInput.value.trim();
+        const password = passwordInput.value;
+        const rememberMe = document.getElementById('rememberMeCheckbox').checked;
+
+        hideAlert();
+        submitBtn.classList.add('loading');
+        submitBtn.innerHTML = `<span class="spinner"></span> Authenticating...`;
+
+        const res = await AUTH.login(username, password, rememberMe);
+
+        if (res.success) {
+          UTILS.showToast(`Welcome back, ${res.user.name}!`, 'success');
+          const params = new URLSearchParams(window.location.search);
+          let targetUrl = params.get('redirect');
+
+          // If no explicit redirect param, route based on role
+          if (!targetUrl) {
+            targetUrl = (res.user.isMember || res.user.role === CONFIG.ROLES.MEMBER) ? 'my-profile.html' : 'dashboard.html';
+          }
+
+          setTimeout(() => {
+            window.location.href = targetUrl;
+          }, 400);
+        } else {
+          submitBtn.classList.remove('loading');
+          submitBtn.textContent = 'Sign In to Portal';
+          showLoginError('Invalid Credentials', res.message || 'The email, Member ID, or password you entered is incorrect.');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

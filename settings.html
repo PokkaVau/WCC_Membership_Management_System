@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en" class="no-theme-transition">
+<head>
+  <meta charset="UTF-8" />
+  <script>
+    (function() {
+      try {
+        var t = localStorage.getItem('wcc_theme_preference_v2') || 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+        document.documentElement.style.colorScheme = t;
+      } catch(e) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.documentElement.style.colorScheme = 'dark';
+      }
+      requestAnimationFrame(function() {
+        setTimeout(function() {
+          document.documentElement.classList.remove('no-theme-transition');
+        }, 50);
+      });
+    })();
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Settings - WCC Membership Management System</title>
+  <meta name="description" content="Configure organization profile, Google Sheet API connection, PDF generator defaults, and system preferences." />
+  <link rel="icon" type="image/png" href="assets/logo/WCC_logo.png" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="css/members.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar" aria-label="Main Navigation">
+      <a href="dashboard.html" class="sidebar-brand">
+        <img src="assets/logo/WCC_logo.png" alt="WCC Emblem" class="sidebar-logo" />
+        <div class="sidebar-brand-text">
+          <span class="sidebar-brand-title">WE CAN CHANGE</span>
+          <span class="sidebar-brand-sub">Membership Portal</span>
+        </div>
+      </a>
+
+      <ul class="sidebar-nav">
+        <li class="nav-section-title">Main Navigation</li>
+        <li class="nav-item">
+          <a href="dashboard.html" class="nav-link">
+            <span class="nav-icon">📊</span>
+            <span>Dashboard</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="members.html" class="nav-link">
+            <span class="nav-icon">👥</span>
+            <span>All Members</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="members.html?status=active" class="nav-link">
+            <span class="nav-icon">🟢</span>
+            <span>Active Members</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="members.html?status=inactive" class="nav-link">
+            <span class="nav-icon">🔴</span>
+            <span>Inactive Members</span>
+          </a>
+        </li>
+
+        <li class="nav-section-title">Reports & Tools</li>
+        <li class="nav-item">
+          <a href="analytics.html" class="nav-link">
+            <span class="nav-icon">📈</span>
+            <span>Analytics</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="settings.html" class="nav-link active">
+            <span class="nav-icon">⚙️</span>
+            <span>Settings</span>
+          </a>
+        </li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <div style="font-size: 0.75rem; color: var(--text-muted);">
+          v2.4.0 &bull; 2026
+        </div>
+        <button type="button" onclick="AUTH.logout()" class="btn btn-sm btn-outline-gold" title="Sign Out">
+          <span>🚪 Logout</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Sticky Header -->
+      <header class="app-header">
+        <div class="header-left">
+          <button type="button" class="menu-toggle" id="menuToggleBtn" aria-label="Toggle Menu">☰</button>
+          <div class="header-search">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="headerGlobalSearch" placeholder="Search members..." />
+          </div>
+        </div>
+
+        <div class="header-right">
+          <button type="button" class="theme-toggle-btn" id="themeToggleBtn" title="Toggle Theme">☀️</button>
+          
+          <div class="user-profile-menu">
+            <img src="assets/logo/WCC_logo.png" alt="Admin Avatar" class="user-avatar" />
+            <div class="user-info">
+              <span class="user-name" id="headerUserName">WCC Admin</span>
+              <span class="user-role" id="headerUserRole">Super Administrator</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Page Content -->
+      <div class="page-container">
+        <!-- Page Header -->
+        <div class="page-header">
+          <div class="page-title-group">
+            <h1 class="page-title">System Settings & Configuration</h1>
+            <p class="page-subtitle">Manage organization branding, Google Sheet data source, PDF parameters, and display themes.</p>
+          </div>
+          <div class="page-actions">
+            <button type="button" id="btnSaveSettings" class="btn btn-primary">
+              <span>💾</span> Save All Settings
+            </button>
+          </div>
+        </div>
+
+        <div class="profile-sections-grid">
+          <!-- Left Column -->
+          <div class="profile-col-8">
+            <!-- 1. Google Sheet & API Connection -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; flex-wrap:wrap; gap:0.5rem;">
+                <h3 class="profile-section-title" style="margin-bottom:0;">
+                  <span>🔗</span> Google Sheet API & Data Source
+                </h3>
+                <span id="apiStatusBadge" class="badge" style="background:rgba(241,173,26,0.15); color:var(--wcc-gold); border:1px solid rgba(241,173,26,0.3); font-size:0.8rem; padding:0.35rem 0.75rem;">
+                  Checking status...
+                </span>
+              </div>
+              
+              <!-- Google Apps Script Web App URL Input & Connect Button -->
+              <div class="form-group" style="margin-bottom:1.25rem;">
+                <label class="form-label" for="settingApiUrl" style="display:flex; justify-content:space-between; align-items:center;">
+                  <span>Google Apps Script Web App Endpoint URL</span>
+                  <span style="font-size:0.75rem; color:var(--text-muted); font-weight:normal;">Backend API (Web App /exec)</span>
+                </label>
+                <div style="display:flex; gap:0.6rem; align-items:stretch; flex-wrap:wrap;">
+                  <input 
+                    type="url" 
+                    id="settingApiUrl" 
+                    class="form-control" 
+                    style="flex:1; min-width:280px; font-family:monospace; font-size:0.85rem;"
+                    placeholder="https://script.google.com/macros/s/AKfycb.../exec" 
+                  />
+                  <button type="button" id="btnConnectApi" class="btn btn-primary" style="display:inline-flex; align-items:center; gap:0.45rem; white-space:nowrap; padding:0.6rem 1.4rem; font-weight:700;">
+                    <span id="connectBtnIcon">🔗</span>
+                    <span id="connectBtnText">Connect</span>
+                  </button>
+                </div>
+                <small style="color:var(--text-muted); display:block; margin-top:0.4rem;">
+                  Paste your deployed Google Apps Script Web App URL from <code>backend/GoogleAppsScript.gs</code> and click <strong>Connect</strong>.
+                </small>
+
+                <!-- Dynamic API Connection Status Alert Box -->
+                <div id="apiConnectionStatusBox" style="margin-top:0.85rem; padding:0.9rem 1.1rem; border-radius:var(--radius-md); font-size:0.875rem; display:none; border:1px solid transparent; transition:all 0.3s ease;">
+                </div>
+              </div>
+
+              <!-- Data Source Mode Selection -->
+              <div class="form-group">
+                <label class="form-label" for="settingDataSourceMode">Data Source Mode</label>
+                <select id="settingDataSourceMode" class="form-control">
+                  <option value="mock">Demo / Mock Dataset Mode (Offline testing with 20+ realistic profiles)</option>
+                  <option value="live">Live Google Sheet API / Google Apps Script Web App</option>
+                </select>
+                <small style="color:var(--text-muted); display:block; margin-top:0.35rem;">
+                  Automatically switched to <strong>Live</strong> when connected successfully.
+                </small>
+              </div>
+
+              <div style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-top:1.25rem;">
+                <button type="button" id="btnTestApi" class="btn btn-sm btn-secondary">
+                  <span>⚡</span> Test API Connection
+                </button>
+                <button type="button" id="btnDisconnectApi" class="btn btn-sm" style="color:#ff6b6b; border:1px solid rgba(231,76,60,0.5); background:rgba(231,76,60,0.08); font-weight:600;">
+                  <span>🔌</span> Disconnect API
+                </button>
+                <button type="button" id="btnClearCache" class="btn btn-sm btn-secondary">
+                  <span>🗑️</span> Purge Local Storage Cache
+                </button>
+              </div>
+            </div>
+
+            <!-- 2. Organization Information -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+              <h3 class="profile-section-title">
+                <span>🏢</span> Organization Information
+              </h3>
+              
+              <div class="profile-fields-grid">
+                <div class="form-group">
+                  <label class="form-label" for="settingOrgName">Organization Name</label>
+                  <input type="text" id="settingOrgName" class="form-control" value="We Can Change" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="settingOrgAcronym">Acronym</label>
+                  <input type="text" id="settingOrgAcronym" class="form-control" value="WCC" />
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="settingOrgSlogan">Official Slogan</label>
+                <input type="text" id="settingOrgSlogan" class="form-control" value="Empowering People, Changing Society" />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="settingOrgAddress">Headquarters Address</label>
+                <input type="text" id="settingOrgAddress" class="form-control" value="House #12, Road #4, Dhanmondi, Dhaka-1205, Bangladesh" />
+              </div>
+
+              <div class="profile-fields-grid">
+                <div class="form-group">
+                  <label class="form-label" for="settingOrgEmail">Official Email</label>
+                  <input type="email" id="settingOrgEmail" class="form-control" value="info@wecanchange.org" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="settingOrgPhone">Contact Phone</label>
+                  <input type="tel" id="settingOrgPhone" class="form-control" value="+880 1700-000000" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="settingOrgWebsite">Website URL</label>
+                  <input type="url" id="settingOrgWebsite" class="form-control" value="https://wecanchange.org" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column -->
+          <div class="profile-col-4">
+            <!-- 3. Membership & ID Preferences -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+              <h3 class="profile-section-title">
+                <span>🪪</span> ID & Status Preferences
+              </h3>
+
+              <div class="form-group">
+                <label class="form-label" for="settingIdPrefix">Member ID Prefix</label>
+                <input type="text" id="settingIdPrefix" class="form-control" value="WCC-2026-" />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="settingDefaultStatus">Default Registration Status</label>
+                <select id="settingDefaultStatus" class="form-control">
+                  <option value="Pending" selected>Pending (Requires Admin Verification)</option>
+                  <option value="Active">Active (Auto-approve)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- 4. Appearance & Themes -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+              <h3 class="profile-section-title">
+                <span>🎨</span> Appearance
+              </h3>
+
+              <div class="form-group">
+                <label class="form-label" for="settingThemeSelect">Color Theme</label>
+                <select id="settingThemeSelect" class="form-control">
+                  <option value="dark">Dark Theme (Midnight Charcoal)</option>
+                  <option value="light">Light Theme (Clean White)</option>
+                </select>
+              </div>
+
+              <div style="font-size:0.8rem; color:var(--text-muted); line-height:1.4;">
+                Theme is synchronized across all open browser windows and devices.
+              </div>
+            </div>
+
+            <!-- 5. Staff Accounts Quick Info -->
+            <div class="card">
+              <h3 class="profile-section-title">
+                <span>👥</span> Admin & Staff Roles
+              </h3>
+              <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:0.75rem;">
+                Authorized roles for WCC administration:
+              </p>
+              <ul style="font-size:0.82rem; color:var(--text-secondary); padding-left:1.2rem; line-height:1.6;">
+                <li><strong>Super Admin</strong>: Full administrative privileges</li>
+                <li><strong>Admin</strong>: Member directory & verification</li>
+                <li><strong>Moderator</strong>: Status updates & PDF issues</li>
+                <li><strong>Viewer</strong>: Read-only access to records</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 6. System Audit Trail (Audit Sheet Viewer) -->
+        <div class="card" style="margin-top: 2rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:1.25rem;">
+            <div>
+              <h3 class="profile-section-title" style="margin:0;">
+                <span>📜</span> System Audit Trail ("Audit_Log" Sheet)
+              </h3>
+              <p style="font-size:0.85rem; color:var(--text-muted); margin-top:0.25rem;">
+                Real-time chronological log of member profile self-updates, admin status changes, logins, and registrations.
+              </p>
+            </div>
+            <div style="display:flex; gap:0.5rem;">
+              <button type="button" id="btnRefreshAuditLogs" class="btn btn-sm btn-secondary">
+                <span>🔄</span> Refresh Audit Log
+              </button>
+            </div>
+          </div>
+
+          <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+            <table class="data-table" id="auditLogTable">
+              <thead>
+                <tr>
+                  <th style="width: 160px;">Timestamp</th>
+                  <th style="width: 160px;">Actor (User)</th>
+                  <th style="width: 120px;">Role</th>
+                  <th style="width: 140px;">Action</th>
+                  <th style="width: 130px;">Target ID</th>
+                  <th>Activity Details</th>
+                </tr>
+              </thead>
+              <tbody id="auditLogTableBody">
+                <tr>
+                  <td colspan="6" style="text-align:center; color:var(--text-muted); padding:2rem;">
+                    Loading system audit trail...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/mockData.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      AUTH.requireAdmin();
+      AUTH.initUIComponents();
+
+      // Load initial settings
+      const modeSelect = document.getElementById('settingDataSourceMode');
+      const apiUrlInput = document.getElementById('settingApiUrl');
+      const themeSelect = document.getElementById('settingThemeSelect');
+
+      if (modeSelect) modeSelect.value = CONFIG.USE_MOCK_DATA ? 'mock' : 'live';
+      if (apiUrlInput) apiUrlInput.value = CONFIG.API_URL;
+      if (themeSelect) {
+        themeSelect.value = document.documentElement.getAttribute('data-theme') || 'dark';
+        themeSelect.addEventListener('change', (e) => {
+          const val = e.target.value;
+          document.documentElement.setAttribute('data-theme', val);
+          document.documentElement.style.colorScheme = val;
+          localStorage.setItem(AUTH.THEME_KEY, val);
+          window.dispatchEvent(new CustomEvent('wcc-theme-changed', { detail: { theme: val } }));
+        });
+      }
+
+      // Load Audit Trail
+      await loadAuditTrail();
+
+      const refreshAuditBtn = document.getElementById('btnRefreshAuditLogs');
+      if (refreshAuditBtn) {
+        refreshAuditBtn.addEventListener('click', async () => {
+          refreshAuditBtn.classList.add('loading');
+          await loadAuditTrail();
+          refreshAuditBtn.classList.remove('loading');
+          UTILS.showToast('Audit trail refreshed!', 'success');
+        });
+      }
+
+      async function loadAuditTrail() {
+        const tbody = document.getElementById('auditLogTableBody');
+        try {
+          const logs = await API.fetchAuditLogs();
+          if (!logs || logs.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:1.5rem;">No audit records found.</td></tr>`;
+            return;
+          }
+          tbody.innerHTML = logs.map(log => `
+            <tr>
+              <td style="font-family:monospace; font-size:0.8rem; color:var(--text-muted); white-space:nowrap;">
+                ${UTILS.escapeHTML(log.timestamp || log.Timestamp || '-')}
+              </td>
+              <td>
+                <strong>${UTILS.escapeHTML(log.actor || log.Actor || '-')}</strong>
+              </td>
+              <td>
+                <span class="badge" style="background:rgba(241,173,26,0.15); color:var(--wcc-gold); border:1px solid rgba(241,173,26,0.3); font-size:0.75rem;">
+                  ${UTILS.escapeHTML(log.role || log['Actor Role'] || 'Staff')}
+                </span>
+              </td>
+              <td>
+                <code style="font-size:0.8rem; color:#2ECC71;">${UTILS.escapeHTML(log.action || log.Action || '-')}</code>
+              </td>
+              <td style="font-family:monospace; font-size:0.82rem; color:var(--text-primary);">
+                ${UTILS.escapeHTML(log.targetId || log['Target ID'] || '-')}
+              </td>
+              <td style="font-size:0.85rem; color:var(--text-secondary);">
+                ${UTILS.escapeHTML(log.details || log.Details || '-')}
+              </td>
+            </tr>
+          `).join('');
+        } catch (e) {
+          tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#FF6B6B; padding:1.5rem;">Failed to load audit logs.</td></tr>`;
+        }
+      }
+
+      // Purge Cache Button
+      const purgeBtn = document.getElementById('btnClearCache');
+      if (purgeBtn) {
+        purgeBtn.addEventListener('click', () => {
+          API.clearCache();
+          UTILS.showToast('Local member cache cleared successfully', 'success');
+        });
+      }
+
+      // Helper function to update API Status Badge & Box
+      function updateApiStatusUI(type, title, message, details = null) {
+        const statusBox = document.getElementById('apiConnectionStatusBox');
+        const statusBadge = document.getElementById('apiStatusBadge');
+
+        if (statusBadge) {
+          if (type === 'success') {
+            statusBadge.style.background = 'rgba(46, 204, 113, 0.15)';
+            statusBadge.style.color = '#2ECC71';
+            statusBadge.style.borderColor = 'rgba(46, 204, 113, 0.4)';
+            statusBadge.innerHTML = '🟢 Live API Connected';
+          } else if (type === 'error') {
+            statusBadge.style.background = 'rgba(231, 76, 60, 0.15)';
+            statusBadge.style.color = '#FF6B6B';
+            statusBadge.style.borderColor = 'rgba(231, 76, 60, 0.4)';
+            statusBadge.innerHTML = '🔴 Connection Failed';
+          } else {
+            statusBadge.style.background = 'rgba(241, 173, 26, 0.15)';
+            statusBadge.style.color = 'var(--wcc-gold)';
+            statusBadge.style.borderColor = 'rgba(241, 173, 26, 0.4)';
+            statusBadge.innerHTML = '🟡 Demo / Mock Mode';
+          }
+        }
+
+        if (statusBox) {
+          statusBox.style.display = 'block';
+          let bg = 'rgba(241, 173, 26, 0.12)';
+          let border = 'rgba(241, 173, 26, 0.35)';
+          let titleColor = 'var(--wcc-gold)';
+          let icon = 'ℹ️';
+
+          if (type === 'success') {
+            bg = 'rgba(46, 204, 113, 0.12)';
+            border = 'rgba(46, 204, 113, 0.35)';
+            titleColor = '#2ECC71';
+            icon = '✅';
+          } else if (type === 'error') {
+            bg = 'rgba(231, 76, 60, 0.12)';
+            border = 'rgba(231, 76, 60, 0.35)';
+            titleColor = '#FF6B6B';
+            icon = '❌';
+          } else if (type === 'info') {
+            bg = 'rgba(52, 152, 219, 0.12)';
+            border = 'rgba(52, 152, 219, 0.35)';
+            titleColor = '#3498DB';
+            icon = '🔄';
+          }
+
+          statusBox.style.backgroundColor = bg;
+          statusBox.style.borderColor = border;
+          statusBox.innerHTML = `
+            <div style="display:flex; align-items:flex-start; gap:0.75rem;">
+              <span style="font-size:1.25rem; line-height:1.2;">${icon}</span>
+              <div style="flex:1;">
+                <div style="font-weight:700; color:${titleColor}; font-size:0.95rem; display:flex; align-items:center; gap:0.5rem;">
+                  <span>${title}</span>
+                </div>
+                <div style="margin-top:0.35rem; line-height:1.45; color:var(--text-secondary); font-size:0.85rem;">
+                  ${message}
+                </div>
+                ${details ? `<div style="margin-top:0.4rem; font-size:0.78rem; color:var(--text-muted); border-top:1px dashed var(--border-color); padding-top:0.35rem;">${details}</div>` : ''}
+              </div>
+            </div>
+          `;
+        }
+      }
+
+      // Function to synchronize the UI buttons, status badge, and alert box with connection state
+      function syncConnectionUIState(isConnected, syncMessage = null, recordCount = null) {
+        const connectBtn = document.getElementById('btnConnectApi');
+        const connectBtnText = document.getElementById('connectBtnText');
+        const connectBtnIcon = document.getElementById('connectBtnIcon');
+
+        if (isConnected) {
+          if (connectBtn) {
+            connectBtn.style.background = '#27ae60';
+            connectBtn.style.borderColor = '#2ecc71';
+            connectBtn.style.color = '#ffffff';
+          }
+          if (connectBtnIcon) connectBtnIcon.textContent = '✅';
+          if (connectBtnText) connectBtnText.textContent = 'Connected (Sync)';
+          if (modeSelect) modeSelect.value = 'live';
+
+          const countMsg = recordCount !== null ? ` &bull; Records loaded: <strong>${recordCount}</strong>` : '';
+          const detailMsg = syncMessage || `Active Endpoint: <code style="font-size:0.75rem;">${CONFIG.API_URL}</code>${countMsg}<br><span style="color:#2ecc71; font-weight:600;">🔒 Permanent Connection: The API stays connected across all dashboard and directory pages until you explicitly click "Disconnect API".</span>`;
+
+          updateApiStatusUI(
+            'success',
+            'Live Google Sheet API Connected & Active 🟢',
+            `The system is continuously connected to your Google Apps Script backend. Live member records are automatically queried across all pages.`,
+            detailMsg
+          );
+        } else {
+          if (connectBtn) {
+            connectBtn.style.background = '';
+            connectBtn.style.borderColor = '';
+            connectBtn.style.color = '';
+          }
+          if (connectBtnIcon) connectBtnIcon.textContent = '🔗';
+          if (connectBtnText) connectBtnText.textContent = 'Connect';
+          if (modeSelect) modeSelect.value = 'mock';
+
+          updateApiStatusUI(
+            'warning',
+            'API Disconnected (Offline Demo Mode Active) 🟡',
+            'Currently disconnected from Google Sheets. The system is operating in offline demo mode with 20 sample member records. Paste your Google Apps Script Web App URL and click <strong>Connect</strong> to re-link live data.',
+            'Status: <strong>Disconnected</strong> &bull; Click "Connect" above to reconnect.'
+          );
+        }
+      }
+
+      // Initial Status UI update on page load: Reflect the current persistent connection state
+      const isInitiallyConnected = CONFIG.IS_API_CONNECTED && !CONFIG.USE_MOCK_DATA;
+      const cached = API.getCachedMembers();
+      if (isInitiallyConnected && cached && cached.length > 0) {
+        syncConnectionUIState(true, null, cached.length);
+      } else {
+        syncConnectionUIState(isInitiallyConnected);
+        if (isInitiallyConnected) {
+          // Asynchronously query live member count so UI displays real Google Sheet records count
+          API.fetchMembers().then(members => {
+            if (members && members.length > 0) {
+              syncConnectionUIState(true, null, members.length);
+            }
+          }).catch(e => console.warn('Initial count fetch warning:', e));
+        }
+      }
+
+      // Connect API logic (High-Speed Handshake & Immediate Data Synchronization)
+      async function connectApi(isTestOnly = false) {
+        let url = (apiUrlInput ? apiUrlInput.value : '').trim();
+        if (!url) {
+          updateApiStatusUI('error', 'URL Is Required', 'Please enter your deployed Google Apps Script Web App URL first.');
+          UTILS.showToast('Please enter Google Apps Script URL', 'error');
+          if (apiUrlInput) apiUrlInput.focus();
+          return;
+        }
+
+        // Clean any accidental query parameters or trailing slashes
+        url = url.split('?')[0].replace(/\/+$/, '');
+        if (!url.endsWith('/exec') && url.includes('/macros/s/')) {
+          url += '/exec';
+        }
+        if (apiUrlInput) apiUrlInput.value = url;
+
+        if (!url.startsWith('https://script.google.com/')) {
+          updateApiStatusUI('error', 'Invalid URL Format', 'The URL must be a valid Google Apps Script Web App URL starting with <code>https://script.google.com/macros/s/.../exec</code>.');
+          UTILS.showToast('Invalid Apps Script URL format', 'error');
+          return;
+        }
+
+        const connectBtn = document.getElementById('btnConnectApi');
+        const connectBtnText = document.getElementById('connectBtnText');
+        const connectBtnIcon = document.getElementById('connectBtnIcon');
+        const testBtn = document.getElementById('btnTestApi');
+
+        if (connectBtn) {
+          connectBtn.disabled = true;
+          if (connectBtnText) connectBtnText.textContent = 'Connecting...';
+          if (connectBtnIcon) connectBtnIcon.textContent = '⚡';
+        }
+        if (testBtn) {
+          testBtn.disabled = true;
+          testBtn.textContent = 'Testing connection...';
+        }
+
+        updateApiStatusUI('info', 'Connecting to Google Apps Script...', 'Verifying endpoint and synchronizing live member records from Google Sheet...');
+
+        try {
+          const startTime = performance.now();
+
+          // 1. FAST HANDSHAKE TEST
+          const pingRes = await API.ping(url);
+          if (!pingRes.ok) {
+            throw new Error(pingRes.message || 'API endpoint handshake failed.');
+          }
+
+          // 2. LIVE MEMBERS DATA TEST & PRE-WARMING
+          CONFIG.API_URL = url;
+          CONFIG.USE_MOCK_DATA = false;
+          API.clearCache();
+
+          const members = await API.fetchMembers(true);
+          const latency = Math.round(performance.now() - startTime);
+          const count = Array.isArray(members) ? members.length : 0;
+
+          // 3. PERSIST CONNECTION PERMANENTLY ACROSS ALL SESSIONS
+          CONFIG.setConnectionStatus(true, url);
+          localStorage.setItem('wcc_api_mode_v2', `false_${url}`);
+
+          const timeStr = new Date().toLocaleTimeString();
+          syncConnectionUIState(
+            true,
+            `Connected at: ${timeStr} &bull; Latency: <strong>${latency}ms</strong> &bull; Total records: <strong>${count}</strong> &bull; Endpoint: <code style="font-size:0.75rem;">${url}</code>`,
+            count
+          );
+
+          UTILS.showToast(`✅ Connected! Loaded ${count} member(s) from Google Sheet.`, 'success');
+
+        } catch (err) {
+          let tip = 'Ensure in Google Apps Script: <strong>Deploy > Manage deployments</strong> &rarr; <strong>Execute as: Me</strong> and <strong>Who has access: Anyone</strong>.';
+          const errMsg = String(err.message || '');
+
+          if (errMsg.includes('getSheetByName') || errMsg.includes('Spreadsheet not found') || errMsg.includes('Cannot read properties of null')) {
+            tip = 'If this is a standalone Apps Script, paste your Google Sheet ID into <code>WCC_MEMBERS_SPREADSHEET_ID</code> at the top of <code>GoogleAppsScript.gs</code>, or open your Google Sheet &rarr; <strong>Extensions &rarr; Apps Script</strong> to install it directly.';
+          } else if (errMsg.includes('Failed to fetch') || errMsg.includes('NetworkError') || err.name === 'AbortError') {
+            tip = 'Network timeout or CORS issue. Verify you copied the Web App URL ending in <code>/exec</code>, not the script editor URL.';
+          } else if (errMsg.includes('Non-JSON response')) {
+            tip = 'Google Apps Script returned an HTML page instead of JSON. Ensure in deployment settings: <strong>Who has access: Anyone</strong> (not "Only myself").';
+          }
+
+          updateApiStatusUI(
+            'error',
+            'API Connection Failed ❌',
+            `Could not load member data: <strong>${UTILS.escapeHTML(errMsg || 'Network connection failed')}</strong>`,
+            `💡 Fix: ${tip}`
+          );
+          UTILS.showToast('Connection issue: ' + (errMsg || 'Check deployment'), 'error');
+        } finally {
+          if (connectBtn) {
+            connectBtn.disabled = false;
+            const isConn = CONFIG.IS_API_CONNECTED && !CONFIG.USE_MOCK_DATA;
+            if (connectBtnText) connectBtnText.textContent = isConn ? 'Connected (Sync)' : 'Connect';
+            if (connectBtnIcon) connectBtnIcon.textContent = isConn ? '✅' : '🔗';
+          }
+          if (testBtn) {
+            testBtn.disabled = false;
+            testBtn.innerHTML = `<span>⚡</span> Test API Connection`;
+          }
+        }
+      }
+
+      // Connect Button click
+      const connectBtn = document.getElementById('btnConnectApi');
+      if (connectBtn) {
+        connectBtn.addEventListener('click', () => connectApi(false));
+      }
+
+      // Test API button click
+      const testBtn = document.getElementById('btnTestApi');
+      if (testBtn) {
+        testBtn.addEventListener('click', () => {
+          if (modeSelect && modeSelect.value === 'mock') {
+            UTILS.showToast('Mock mode active: 20 mock records available offline', 'info');
+            updateApiStatusUI('warning', 'Demo / Mock Mode Active', 'Currently testing offline with demo data. Click <strong>Connect</strong> above to connect live Google Sheet.');
+          } else {
+            connectApi(true);
+          }
+        });
+      }
+
+      // Disconnect button click (Explicitly disconnects and stays disconnected until Connect is clicked)
+      const disconnectBtn = document.getElementById('btnDisconnectApi');
+      if (disconnectBtn) {
+        disconnectBtn.addEventListener('click', () => {
+          CONFIG.setConnectionStatus(false);
+          API.clearCache();
+          syncConnectionUIState(false);
+          UTILS.showToast('API Disconnected. Switched to offline demo mode.', 'info');
+        });
+      }
+
+      // Purge Cache button click
+      const clearCacheBtn = document.getElementById('btnClearCache');
+      if (clearCacheBtn) {
+        clearCacheBtn.addEventListener('click', () => {
+          API.clearCache();
+          localStorage.removeItem('wcc_members_cache_v3');
+          localStorage.removeItem('wcc_members_cache_time_v3');
+          localStorage.removeItem('wcc_members_cache_v2');
+          localStorage.removeItem('wcc_members_cache_time_v2');
+          UTILS.showToast('Local cache purged successfully! Refreshing data...', 'success');
+        });
+      }
+
+      // Mode Select change
+      if (modeSelect) {
+        modeSelect.addEventListener('change', async (e) => {
+          const isMock = e.target.value === 'mock';
+          CONFIG.setConnectionStatus(!isMock);
+          API.clearCache();
+          syncConnectionUIState(!isMock);
+          if (!isMock) {
+            try {
+              const members = await API.fetchMembers(true);
+              if (members) syncConnectionUIState(true, null, members.length);
+            } catch (err) {
+              console.warn('Mode change fetch error:', err);
+            }
+          }
+        });
+      }
+
+      // Save Settings button
+      const saveBtn = document.getElementById('btnSaveSettings');
+      if (saveBtn) {
+        saveBtn.addEventListener('click', () => {
+          const isMock = modeSelect.value === 'mock';
+          let newUrl = (apiUrlInput ? apiUrlInput.value : '').trim();
+          if (newUrl) {
+            newUrl = newUrl.split('?')[0].replace(/\/+$/, '');
+            if (!newUrl.endsWith('/exec') && newUrl.includes('/macros/s/')) {
+              newUrl += '/exec';
+            }
+            if (apiUrlInput) apiUrlInput.value = newUrl;
+          }
+          CONFIG.setConnectionStatus(!isMock, newUrl);
+          syncConnectionUIState(!isMock);
+
+          CONFIG.ORG_INFO.name = document.getElementById('settingOrgName').value;
+          CONFIG.ORG_INFO.slogan = document.getElementById('settingOrgSlogan').value;
+          CONFIG.ORG_INFO.address = document.getElementById('settingOrgAddress').value;
+          CONFIG.ORG_INFO.email = document.getElementById('settingOrgEmail').value;
+          CONFIG.ORG_INFO.phone = document.getElementById('settingOrgPhone').value;
+          CONFIG.ORG_INFO.website = document.getElementById('settingOrgWebsite').value;
+
+          API.clearCache(); // Force refresh with new settings
+          UTILS.showToast('System configuration saved successfully!', 'success');
+        });
+      }
+    });
+  </script>
+</body>
+</html>

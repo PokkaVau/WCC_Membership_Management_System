@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en" class="no-theme-transition">
+<head>
+  <meta charset="UTF-8" />
+  <script>
+    (function() {
+      try {
+        var t = localStorage.getItem('wcc_theme_preference_v2') || 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+        document.documentElement.style.colorScheme = t;
+      } catch(e) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.documentElement.style.colorScheme = 'dark';
+      }
+      requestAnimationFrame(function() {
+        setTimeout(function() {
+          document.documentElement.classList.remove('no-theme-transition');
+        }, 50);
+      });
+    })();
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://script.google.com https://script.googleusercontent.com;" />
+  <title>WCC Member Verification - Official Portal</title>
+  <meta name="description" content="Official public member verification portal for We Can Change (WCC)." />
+  <link rel="icon" type="image/png" href="assets/logo/WCC_logo.png" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/members.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+</head>
+<body>
+  <div class="verify-page-wrapper">
+    <div class="verify-card" id="verificationCard">
+      <!-- Loading State -->
+      <div id="verifyLoadingState" style="padding: 2rem 0;">
+        <div class="spinner" style="width: 32px; height: 32px; border-width: 3px; color: var(--wcc-gold); margin-bottom: 1rem;"></div>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">Verifying membership credentials...</p>
+      </div>
+
+      <!-- Verified Success State -->
+      <div id="verifySuccessState" style="display: none;">
+        <img src="assets/logo/WCC_logo.png" alt="WCC Emblem" class="verify-logo-emblem" />
+        <h1 class="verify-title">WE CAN CHANGE (WCC)</h1>
+        <p class="verify-subtitle">Official Membership Verification Record</p>
+
+        <div class="verify-photo-wrap">
+          <img 
+            id="verifiedPhoto" 
+            src="assets/images/default-avatar.svg" 
+            alt="Member Photo" 
+            class="verify-photo" 
+          />
+          <img src="assets/images/badge-verified.svg" alt="Verified Badge" class="verify-badge-icon" />
+        </div>
+
+        <h2 class="verify-name" id="verifiedName">-</h2>
+        <div class="verify-id" id="verifiedId">WCC-0000-0000</div>
+
+        <div id="verifiedStatusBanner" class="verify-status-banner">
+          <!-- Status Banner -->
+        </div>
+
+        <!-- Safe Public Metadata (NO phone, email, or sensitive personal address) -->
+        <div class="verify-meta-table">
+          <div class="verify-meta-row">
+            <span class="lbl">Membership Type:</span>
+            <span class="val" id="verifiedType">General Member</span>
+          </div>
+          <div class="verify-meta-row">
+            <span class="lbl">Official Joining Date:</span>
+            <span class="val" id="verifiedJoiningDate">-</span>
+          </div>
+          <div class="verify-meta-row">
+            <span class="lbl">Verification Status:</span>
+            <span class="val" style="color:#2ECC71;">✓ Verified Authenticated</span>
+          </div>
+        </div>
+
+        <div style="font-size: 0.72rem; color: var(--text-muted); border-top: 1px solid var(--border-subtle); padding-top: 1rem;">
+          🔒 Privacy Notice: Private contact and personal details are protected under WCC privacy policy and excluded from public verification.
+        </div>
+      </div>
+
+      <!-- Member Not Found / Error State -->
+      <div id="verifyErrorState" style="display: none;">
+        <img src="assets/logo/WCC_logo.png" alt="WCC Logo" class="verify-logo-emblem" style="filter: grayscale(1); opacity: 0.6;" />
+        <h2 class="verify-title" style="color: #FF6B6B;">Member Not Found</h2>
+        <p class="verify-subtitle" id="verifyErrorMessage">
+          The scanned membership record does not exist or has expired.
+        </p>
+
+        <div style="background: rgba(182, 42, 53, 0.15); border: 1px solid rgba(182, 42, 53, 0.35); border-radius: var(--radius-md); padding: 1.25rem; margin: 1.5rem 0; font-size: 0.88rem; color: #FF9999;">
+          ⚠️ This ID could not be validated against the active We Can Change registry. Please check the QR code or contact WCC administrative support.
+        </div>
+
+        <div style="font-size: 0.8rem; color: var(--text-muted);">
+          Official Portal &bull; www.wecanchange.org
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/mockData.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Set saved theme if exists
+      const savedTheme = localStorage.getItem('wcc_theme_preference_v2') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+      document.documentElement.style.colorScheme = savedTheme;
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const memberId = urlParams.get('id');
+
+      const loadingEl = document.getElementById('verifyLoadingState');
+      const successEl = document.getElementById('verifySuccessState');
+      const errorEl = document.getElementById('verifyErrorState');
+
+      if (!memberId) {
+        loadingEl.style.display = 'none';
+        document.getElementById('verifyErrorMessage').textContent = 'No membership identifier provided in verification query.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      try {
+        const member = await API.verifyMemberPublic(memberId);
+
+        loadingEl.style.display = 'none';
+
+        if (!member) {
+          document.getElementById('verifyErrorMessage').textContent = `No registered record found for ID: "${memberId}".`;
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        // Populate Safe Public Fields ONLY (Zero Sensitive PII)
+        document.getElementById('verifiedName').textContent = member.name;
+        document.getElementById('verifiedId').textContent = member.memberId;
+        document.getElementById('verifiedType').textContent = member.membershipType || 'General Member';
+        document.getElementById('verifiedJoiningDate').textContent = member.joiningYear || member.formattedJoiningDate || member.formattedRegDate || '2026';
+
+        const photoEl = document.getElementById('verifiedPhoto');
+        photoEl.src = member.photoUrl;
+        photoEl.onerror = () => { photoEl.src = CONFIG.ORG_INFO.defaultAvatarPath; };
+
+        // Status Banner
+        const statusBanner = document.getElementById('verifiedStatusBanner');
+        const st = (member.status || '').toLowerCase();
+
+        if (st === 'active') {
+          statusBanner.style.background = 'rgba(22, 144, 83, 0.2)';
+          statusBanner.style.color = '#2ECC71';
+          statusBanner.style.border = '1px solid rgba(22, 144, 83, 0.5)';
+          statusBanner.innerHTML = '🟢 ACTIVE WCC MEMBER';
+        } else if (st === 'pending') {
+          statusBanner.style.background = 'rgba(241, 173, 26, 0.2)';
+          statusBanner.style.color = '#F1AD1A';
+          statusBanner.style.border = '1px solid rgba(241, 173, 26, 0.5)';
+          statusBanner.innerHTML = '🟡 PENDING VERIFICATION';
+        } else {
+          statusBanner.style.background = 'rgba(182, 42, 53, 0.2)';
+          statusBanner.style.color = '#FF6B6B';
+          statusBanner.style.border = '1px solid rgba(182, 42, 53, 0.5)';
+          statusBanner.innerHTML = `🔴 ${member.status.toUpperCase()}`;
+        }
+
+        successEl.style.display = 'block';
+      } catch (e) {
+        console.error('Verification error:', e);
+        loadingEl.style.display = 'none';
+        document.getElementById('verifyErrorMessage').textContent = 'Unable to connect to verification services. Please try again later.';
+        errorEl.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>

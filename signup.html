@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en" class="no-theme-transition">
+<head>
+  <meta charset="UTF-8" />
+  <script>
+    (function() {
+      try {
+        var t = localStorage.getItem('wcc_theme_preference_v2') || 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+        document.documentElement.style.colorScheme = t;
+      } catch(e) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.documentElement.style.colorScheme = 'dark';
+      }
+      requestAnimationFrame(function() {
+        setTimeout(function() {
+          document.documentElement.classList.remove('no-theme-transition');
+        }, 50);
+      });
+    })();
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Member Sign Up & Activation - We Can Change (WCC)</title>
+  <meta name="description" content="Activate your WCC member portal account by verifying your registered email and setting your password." />
+  <link rel="icon" type="image/png" href="assets/logo/WCC_logo.png" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+  <style>
+    .signup-page-wrapper {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+      background: radial-gradient(circle at 50% 20%, #1D3557 0%, #0F1218 80%);
+    }
+
+    .signup-card {
+      width: 100%;
+      max-width: 480px;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 2.5rem 2.25rem;
+      box-shadow: var(--shadow-lg);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .signup-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 5px;
+      background: linear-gradient(90deg, var(--wcc-gold), var(--wcc-crimson));
+    }
+
+    .signup-brand-header {
+      text-align: center;
+      margin-bottom: 1.75rem;
+    }
+
+    .signup-logo {
+      width: 72px;
+      height: 72px;
+      margin-bottom: 0.75rem;
+      filter: drop-shadow(0 4px 12px rgba(241, 173, 26, 0.3));
+    }
+
+    .signup-title {
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+    }
+
+    .signup-subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    .info-callout {
+      background: rgba(241, 173, 26, 0.08);
+      border-left: 3px solid var(--wcc-gold);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      padding: 0.75rem 1rem;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      line-height: 1.45;
+      margin-bottom: 1.5rem;
+    }
+
+    .password-match-hint {
+      font-size: 0.75rem;
+      margin-top: 0.35rem;
+      display: none;
+    }
+
+    .password-match-hint.valid {
+      color: #2ECC71;
+      display: block;
+    }
+
+    .password-match-hint.invalid {
+      color: #FF6B6B;
+      display: block;
+    }
+
+    .signup-footer-links {
+      text-align: center;
+      margin-top: 1.75rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .signup-footer-links a {
+      color: var(--wcc-gold);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .signup-footer-links a:hover {
+      text-decoration: underline;
+    }
+
+    /* Modal Overlay for Registration Success */
+    .success-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 1.5rem;
+    }
+
+    .success-modal.active {
+      display: flex;
+    }
+
+    .success-dialog {
+      background: var(--bg-card);
+      border: 1px solid var(--wcc-gold);
+      border-radius: var(--radius-lg);
+      padding: 2.25rem;
+      max-width: 440px;
+      text-align: center;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .badge-member-id {
+      background: rgba(241, 173, 26, 0.15);
+      border: 1px solid var(--wcc-gold);
+      color: var(--wcc-gold);
+      font-size: 1.2rem;
+      font-weight: 700;
+      padding: 0.5rem 1.25rem;
+      border-radius: var(--radius-md);
+      display: inline-block;
+      margin: 1rem 0;
+      letter-spacing: 0.05em;
+    }
+  </style>
+</head>
+<body>
+  <div class="signup-page-wrapper">
+    <div class="signup-card">
+      <!-- Top-Right Dark/Light Mode Switch -->
+      <button type="button" class="theme-toggle-btn card-theme-toggle" id="themeToggleBtn" title="Toggle Dark/Light Mode" aria-label="Toggle Theme">☀️</button>
+
+      <div class="signup-brand-header">
+        <a href="index.html">
+          <img src="assets/logo/WCC_logo.png" alt="We Can Change (WCC) Logo" class="signup-logo" />
+        </a>
+        <h1 class="signup-title">Member Sign Up & Activation</h1>
+        <p class="signup-subtitle">We Can Change (WCC) Membership Portal</p>
+      </div>
+
+      <!-- Info box explaining email verification against existing sheet -->
+      <div class="info-callout">
+        ℹ️ <strong>Registered Members Only:</strong> Your membership information is already stored in the WCC database. Enter your <strong>registered email address</strong> to verify your record and create your portal password.
+      </div>
+
+      <!-- Prominent Red Alert Banner -->
+      <div id="signupAlert" class="login-alert alert-error" role="alert">
+        <div class="alert-icon">⛔</div>
+        <div class="alert-content">
+          <strong class="alert-title" id="alertTitle">Registration Failed</strong>
+          <div class="alert-message" id="alertMessage">The entered email address was not found in our records.</div>
+        </div>
+      </div>
+
+      <form id="signupForm" autocomplete="on">
+        <!-- 1. Registered Identifier (Email, Phone, or Member ID) -->
+        <div class="form-group">
+          <label for="regEmail" class="form-label">Registered Email, Phone, or Member ID *</label>
+          <input 
+            type="text" 
+            id="regEmail" 
+            class="form-control" 
+            placeholder="e.g. email@domain.com, 01700000000, or WCC-2025-0001" 
+            required 
+            autocomplete="username"
+          />
+          <div class="invalid-feedback" id="emailFeedback"></div>
+          <small style="color:var(--text-muted); font-size:0.75rem; display:block; margin-top:0.25rem;">
+            Enter your registered Email, Mobile number, or Member ID from the WCC sheet.
+          </small>
+        </div>
+
+        <!-- 2. Password -->
+        <div class="form-group">
+          <label for="regPassword" class="form-label">Create Password *</label>
+          <input 
+            type="password" 
+            id="regPassword" 
+            class="form-control" 
+            placeholder="Min. 6 characters" 
+            required 
+            minlength="6"
+            autocomplete="new-password"
+          />
+        </div>
+
+        <!-- 3. Confirm Password -->
+        <div class="form-group">
+          <label for="regConfirmPassword" class="form-label">Confirm Password *</label>
+          <input 
+            type="password" 
+            id="regConfirmPassword" 
+            class="form-control" 
+            placeholder="Repeat password" 
+            required 
+            minlength="6"
+            autocomplete="new-password"
+          />
+          <div id="passwordMatchHint" class="password-match-hint"></div>
+          <div class="invalid-feedback" id="passwordFeedback"></div>
+        </div>
+
+        <div class="security-note">
+          <span>🔒</span> Passwords are encrypted with Salted SHA-256
+        </div>
+
+        <button type="submit" id="regSubmitBtn" class="btn btn-primary btn-fill" style="padding:0.85rem; font-size:0.95rem;">
+          <span>✓</span> Verify & Activate Account
+        </button>
+      </form>
+
+      <div class="signup-footer-links">
+        <div>Already activated your account? <a href="index.html">Sign In here</a></div>
+        <div style="margin-top:0.35rem;">Forgot your password? <a href="forgot-password.html" style="color:var(--wcc-gold); font-weight:600;">Reset it here</a></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Success Celebratory Modal -->
+  <div class="success-modal" id="successModal">
+    <div class="success-dialog">
+      <div style="font-size:3rem; margin-bottom:0.75rem;">🎉</div>
+      <h2 style="font-size:1.4rem; font-weight:700; color:var(--text-primary); margin-bottom:0.35rem;">Email Verified & Activated!</h2>
+      <p style="font-size:0.88rem; color:var(--text-muted);">Your membership record has been successfully matched and activated.</p>
+      
+      <div class="badge-member-id" id="assignedMemberId">WCC-0000-0000</div>
+
+      <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:1.5rem;" id="matchedMemberName">
+        Welcome to your member portal!
+      </p>
+
+      <button type="button" id="btnGoToLogin" class="btn btn-primary btn-fill" style="padding:0.85rem;">
+        Sign In to My Portal &rarr;
+      </button>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/mockData.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      AUTH.redirectIfAuthenticated();
+      AUTH.initTheme();
+
+      const form = document.getElementById('signupForm');
+      const submitBtn = document.getElementById('regSubmitBtn');
+      const alertBox = document.getElementById('signupAlert');
+      const alertTitle = document.getElementById('alertTitle');
+      const alertMsg = document.getElementById('alertMessage');
+      const emailInput = document.getElementById('regEmail');
+      const emailFeedback = document.getElementById('emailFeedback');
+      const passInput = document.getElementById('regPassword');
+      const confirmInput = document.getElementById('regConfirmPassword');
+      const passwordFeedback = document.getElementById('passwordFeedback');
+      const hint = document.getElementById('passwordMatchHint');
+      const successModal = document.getElementById('successModal');
+      const assignedIdEl = document.getElementById('assignedMemberId');
+      const matchedNameEl = document.getElementById('matchedMemberName');
+      const goToLoginBtn = document.getElementById('btnGoToLogin');
+
+      function hideAlert() {
+        alertBox.classList.remove('show');
+        emailInput.classList.remove('is-invalid');
+        passInput.classList.remove('is-invalid');
+        confirmInput.classList.remove('is-invalid');
+        emailFeedback.classList.remove('show');
+        emailFeedback.textContent = '';
+        passwordFeedback.classList.remove('show');
+        passwordFeedback.textContent = '';
+      }
+
+      function showError(title, message, errorType) {
+        alertTitle.textContent = title || 'Sign Up Error';
+        alertMsg.textContent = message;
+        
+        // Retrigger shake animation
+        alertBox.classList.remove('show');
+        void alertBox.offsetWidth; // force reflow
+        alertBox.classList.add('show');
+
+        if (errorType === 'email') {
+          emailInput.classList.add('is-invalid');
+          emailFeedback.textContent = message;
+          emailFeedback.classList.add('show');
+          emailInput.focus();
+        } else if (errorType === 'password') {
+          passInput.classList.add('is-invalid');
+          confirmInput.classList.add('is-invalid');
+          passwordFeedback.textContent = message;
+          passwordFeedback.classList.add('show');
+          confirmInput.focus();
+        }
+
+        // Show floating red toast
+        if (typeof UTILS !== 'undefined' && UTILS.showToast) {
+          UTILS.showToast(message, 'error');
+        }
+
+        alertBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+
+      function checkPasswords() {
+        if (!confirmInput.value) {
+          hint.style.display = 'none';
+          return;
+        }
+        if (passInput.value === confirmInput.value) {
+          hint.textContent = '✓ Passwords match';
+          hint.className = 'password-match-hint valid';
+          confirmInput.classList.remove('is-invalid');
+          passwordFeedback.classList.remove('show');
+        } else {
+          hint.textContent = '✕ Passwords do not match';
+          hint.className = 'password-match-hint invalid';
+        }
+      }
+
+      emailInput.addEventListener('input', () => {
+        emailInput.classList.remove('is-invalid');
+        emailFeedback.classList.remove('show');
+      });
+
+      passInput.addEventListener('input', () => {
+        passInput.classList.remove('is-invalid');
+        confirmInput.classList.remove('is-invalid');
+        passwordFeedback.classList.remove('show');
+        checkPasswords();
+      });
+
+      confirmInput.addEventListener('input', () => {
+        confirmInput.classList.remove('is-invalid');
+        passwordFeedback.classList.remove('show');
+        checkPasswords();
+      });
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        hideAlert();
+
+        const email = emailInput.value.trim();
+        const password = passInput.value;
+        const confirm = confirmInput.value;
+
+        if (password.length < 6) {
+          showError('Password Too Short', 'Password must be at least 6 characters long.', 'password');
+          return;
+        }
+
+        if (password !== confirm) {
+          showError('Passwords Do Not Match', 'Please enter the exact same password in both fields.', 'password');
+          return;
+        }
+
+        submitBtn.classList.add('loading');
+        submitBtn.innerHTML = `<span class="spinner"></span> Verifying with Members Database...`;
+
+        const payload = {
+          email: email,
+          password: password
+        };
+
+        const res = await AUTH.register(payload);
+
+        submitBtn.classList.remove('loading');
+        submitBtn.innerHTML = `<span>✓</span> Verify & Activate Account`;
+
+        if (res.success) {
+          assignedIdEl.textContent = res.memberId;
+          matchedNameEl.textContent = `Welcome, ${res.name || 'Member'}! Your account is now active.`;
+          successModal.classList.add('active');
+
+          goToLoginBtn.onclick = () => {
+            window.location.href = `index.html?registered=${encodeURIComponent(res.memberId)}`;
+          };
+        } else {
+          // Identifier mismatch or other registration failure
+          showError('Registration Failed', res.message || 'The email, phone, or Member ID you entered was not found in the WCC members sheet.', 'email');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

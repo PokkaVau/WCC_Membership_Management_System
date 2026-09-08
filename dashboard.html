@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en" class="no-theme-transition">
+<head>
+  <meta charset="UTF-8" />
+  <script>
+    (function() {
+      try {
+        var t = localStorage.getItem('wcc_theme_preference_v2') || 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+        document.documentElement.style.colorScheme = t;
+      } catch(e) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.documentElement.style.colorScheme = 'dark';
+      }
+      requestAnimationFrame(function() {
+        setTimeout(function() {
+          document.documentElement.classList.remove('no-theme-transition');
+        }, 50);
+      });
+    })();
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://script.google.com https://script.googleusercontent.com;" />
+  <title>Dashboard - WCC Membership Management System</title>
+  <meta name="description" content="Executive membership analytics and directory dashboard for We Can Change (WCC)." />
+  <link rel="icon" type="image/png" href="assets/logo/WCC_logo.png" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="css/members.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+  <!-- CDN Dependencies -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar" aria-label="Main Navigation">
+      <a href="dashboard.html" class="sidebar-brand">
+        <img src="assets/logo/WCC_logo.png" alt="WCC Emblem" class="sidebar-logo" />
+        <div class="sidebar-brand-text">
+          <span class="sidebar-brand-title">WE CAN CHANGE</span>
+          <span class="sidebar-brand-sub">Membership Portal</span>
+        </div>
+      </a>
+
+      <ul class="sidebar-nav">
+        <li class="nav-section-title">Main Navigation</li>
+        <li class="nav-item">
+          <a href="dashboard.html" class="nav-link active">
+            <span class="nav-icon">📊</span>
+            <span>Dashboard</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="members.html" class="nav-link">
+            <span class="nav-icon">👥</span>
+            <span>All Members</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="members.html?status=active" class="nav-link">
+            <span class="nav-icon">🟢</span>
+            <span>Active Members</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="members.html?status=inactive" class="nav-link">
+            <span class="nav-icon">🔴</span>
+            <span>Inactive Members</span>
+          </a>
+        </li>
+
+        <li class="nav-section-title">Reports & Tools</li>
+        <li class="nav-item">
+          <a href="analytics.html" class="nav-link">
+            <span class="nav-icon">📈</span>
+            <span>Analytics</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="settings.html" class="nav-link">
+            <span class="nav-icon">⚙️</span>
+            <span>Settings</span>
+          </a>
+        </li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <div style="font-size: 0.75rem; color: var(--text-muted);">
+          v2.4.0 &bull; 2026
+        </div>
+        <button type="button" onclick="AUTH.logout()" class="btn btn-sm btn-outline-gold" title="Sign Out">
+          <span>🚪 Logout</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Sticky Header -->
+      <header class="app-header">
+        <div class="header-left">
+          <button type="button" class="menu-toggle" id="menuToggleBtn" aria-label="Toggle Menu">☰</button>
+          <div class="header-search">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="headerGlobalSearch" placeholder="Search members by name, ID, phone..." />
+          </div>
+        </div>
+
+        <div class="header-right">
+          <button type="button" class="theme-toggle-btn" id="themeToggleBtn" title="Toggle Theme">☀️</button>
+          
+          <div class="user-profile-menu">
+            <img src="assets/logo/WCC_logo.png" alt="Admin Avatar" class="user-avatar" />
+            <div class="user-info">
+              <span class="user-name" id="headerUserName">WCC Admin</span>
+              <span class="user-role" id="headerUserRole">Super Administrator</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Page Body -->
+      <div class="page-container">
+        <!-- Page Title & Header Actions -->
+        <div class="page-header">
+          <div class="page-title-group">
+            <h1 class="page-title">WCC Membership Management System</h1>
+            <p class="page-subtitle">Welcome back, Administrator. Real-time overview of organization members.</p>
+          </div>
+          <div class="page-actions">
+            <button type="button" id="refreshDashboardBtn" class="btn btn-secondary">
+              <span>🔄</span> Refresh Data
+            </button>
+            <a href="members.html" class="btn btn-primary">
+              <span>👥</span> Manage Directory
+            </a>
+          </div>
+        </div>
+
+        <!-- Demographic Quick Strip -->
+        <div class="demographic-strip">
+          <div class="demographic-item">
+            <span class="label">Total In Database</span>
+            <span class="val" id="stripTotal">-</span>
+          </div>
+          <div class="demographic-item">
+            <span class="label">Active Rate</span>
+            <span class="val" id="stripActiveRatio">-</span>
+          </div>
+          <div class="demographic-item">
+            <span class="label">Districts Represented</span>
+            <span class="val" id="stripDistricts">-</span>
+          </div>
+          <div class="demographic-item">
+            <span class="label">Youth / Students</span>
+            <span class="val" id="stripStudents">-</span>
+          </div>
+        </div>
+
+        <!-- 8 Core Metric KPI Cards -->
+        <section class="metrics-grid" aria-label="Membership Statistics">
+          <div class="metric-card">
+            <div class="metric-icon-wrap gold">👥</div>
+            <div class="metric-info">
+              <span class="metric-label">Total Members</span>
+              <span class="metric-value" id="metricTotalMembers">-</span>
+              <span class="metric-sub">Across all categories</span>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-icon-wrap green">🟢</div>
+            <div class="metric-info">
+              <span class="metric-label">Active Members</span>
+              <span class="metric-value" id="metricActiveMembers">-</span>
+              <span class="metric-sub">Verified & current</span>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-icon-wrap crimson">🔴</div>
+            <div class="metric-info">
+              <span class="metric-label">Inactive Members</span>
+              <span class="metric-value" id="metricInactiveMembers">-</span>
+              <span class="metric-sub">Inactive or suspended</span>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-icon-wrap navy">👨</div>
+            <div class="metric-info">
+              <span class="metric-label">Male Members</span>
+              <span class="metric-value" id="metricMaleMembers">-</span>
+              <span class="metric-sub">Registered male</span>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-icon-wrap crimson">👩</div>
+            <div class="metric-info">
+              <span class="metric-label">Female Members</span>
+              <span class="metric-value" id="metricFemaleMembers">-</span>
+              <span class="metric-sub">Registered female</span>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-icon-wrap green">🎓</div>
+            <div class="metric-info">
+              <span class="metric-label">Student Members</span>
+              <span class="metric-value" id="metricStudentMembers">-</span>
+              <span class="metric-sub">High school & university</span>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-icon-wrap charcoal">💼</div>
+            <div class="metric-info">
+              <span class="metric-label">Professional</span>
+              <span class="metric-value" id="metricProfessionalMembers">-</span>
+              <span class="metric-sub">Employed & business</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Preview Charts Section -->
+        <section class="charts-grid">
+          <div class="chart-card chart-card-lg">
+            <div class="chart-header">
+              <h3 class="chart-title">
+                <span class="chart-title-icon">🩸</span> Members by Blood Group
+              </h3>
+              <a href="analytics.html" class="btn btn-sm btn-secondary">Full Analytics &rarr;</a>
+            </div>
+            <div class="chart-body">
+              <canvas id="bloodPreviewChart"></canvas>
+            </div>
+          </div>
+
+          <div class="chart-card chart-card-sm">
+            <div class="chart-header">
+              <h3 class="chart-title">
+                <span class="chart-title-icon">⚖️</span> Gender Ratio
+              </h3>
+              <span class="chart-subtitle">Distribution</span>
+            </div>
+            <div class="chart-body">
+              <canvas id="genderPreviewChart"></canvas>
+            </div>
+          </div>
+        </section>
+
+        <!-- Recent Members Section -->
+        <section class="recent-members-section">
+          <div class="section-header">
+            <h3 class="section-title">Recent Member Registrations</h3>
+            <a href="members.html" class="btn btn-sm btn-outline-gold">View Full Directory &rarr;</a>
+          </div>
+
+          <div class="table-container" style="margin-bottom:0;">
+            <div class="data-table-wrapper">
+              <table class="data-table" aria-label="Recent Members">
+                <thead>
+                  <tr>
+                    <th>Photo</th>
+                    <th>Member Details</th>
+                    <th>Blood Group</th>
+                    <th>District</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="recentMembersTableBody">
+                  <tr>
+                    <td colspan="6" style="text-align: center; padding: 2rem;">Loading recent members...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Application Scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/mockData.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/pdf.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

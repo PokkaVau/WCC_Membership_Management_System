@@ -1,0 +1,240 @@
+/* ==========================================================================
+   WCC Membership Management System - Dashboard Stylesheet
+   KPI Metric Cards, Chart Containers, Activity Feeds, Quick Actions
+   ========================================================================== */
+
+/* Metrics Grid */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.metric-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.35rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+}
+
+.metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--wcc-gold);
+  opacity: 0.8;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: rgba(241, 173, 26, 0.4);
+}
+
+.metric-icon-wrap {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.metric-icon-wrap.gold {
+  background: rgba(241, 173, 26, 0.15);
+  color: var(--wcc-gold);
+}
+
+.metric-icon-wrap.crimson {
+  background: rgba(182, 42, 53, 0.15);
+  color: var(--wcc-crimson);
+}
+
+.metric-icon-wrap.green {
+  background: rgba(22, 144, 83, 0.15);
+  color: var(--wcc-green);
+}
+
+.metric-icon-wrap.navy {
+  background: rgba(29, 53, 87, 0.25);
+  color: #5D9CEC;
+}
+
+.metric-icon-wrap.charcoal {
+  background: rgba(107, 114, 128, 0.2);
+  color: #9CA3AF;
+}
+
+.metric-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.metric-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.metric-value {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.1;
+  font-family: var(--font-main);
+}
+
+.metric-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.35rem;
+}
+
+/* Charts Grid */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.chart-card-lg {
+  grid-column: span 8;
+}
+
+.chart-card-sm {
+  grid-column: span 4;
+}
+
+.chart-card-half {
+  grid-column: span 6;
+}
+
+.chart-card-full {
+  grid-column: span 12;
+}
+
+.chart-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+}
+
+.chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.chart-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chart-title-icon {
+  color: var(--wcc-gold);
+}
+
+.chart-subtitle {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.chart-body {
+  position: relative;
+  flex: 1;
+  min-height: 260px;
+  width: 100%;
+}
+
+/* Quick Actions Section */
+.quick-actions-bar {
+  display: flex;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+}
+
+/* Recent Members Table on Dashboard */
+.recent-members-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.section-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Quick Stats Bar */
+.demographic-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  margin-bottom: 2rem;
+  overflow: hidden;
+}
+
+.demographic-item {
+  padding: 1rem 1.25rem;
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+}
+
+.demographic-item:last-child {
+  border-right: none;
+}
+
+.demographic-item .label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.demographic-item .val {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--wcc-gold);
+  margin-top: 0.2rem;
+}

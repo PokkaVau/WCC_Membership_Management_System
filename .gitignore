@@ -1,0 +1,19 @@
+# OS generated files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Node / Dependencies
+node_modules/
+npm-debug.log*
+
+# Test / Scratch scripts
+test_new_tasks.js
+scratch/
+
+# IDE / Editor folders
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj

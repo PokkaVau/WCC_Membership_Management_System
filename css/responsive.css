@@ -1,0 +1,315 @@
+/* ==========================================================================
+   WCC Membership Management System - Responsive & Print Stylesheet
+   Breakpoints: 320px, 375px, 425px, 768px, 1024px, 1440px+
+   Print Formatting via @media print
+   ========================================================================== */
+
+/* 1440px+ (Ultra Wide / Large Desktops) */
+@media (min-width: 1440px) {
+  .page-container {
+    max-width: 1600px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .metrics-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* 1024px and Below (Laptops / Tablets in Landscape) */
+@media (max-width: 1024px) {
+  :root {
+    --sidebar-width: 240px;
+  }
+
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-card-lg, .chart-card-sm, .chart-card-half, .chart-card-full {
+    grid-column: span 12;
+  }
+
+  .profile-sections-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-col-8, .profile-col-4 {
+    grid-column: span 12;
+  }
+
+  .demographic-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .demographic-item:nth-child(2) {
+    border-right: none;
+  }
+
+  .demographic-item:nth-child(1), .demographic-item:nth-child(2) {
+    border-bottom: 1px solid var(--border-subtle);
+  }
+}
+
+/* 880px and Below (Tablets / Laptops / Mobiles) */
+@media (max-width: 880px) {
+  .app-container {
+    width: 100vw;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .sidebar {
+    transform: translateX(-100%);
+    width: 270px;
+  }
+
+  .sidebar.active {
+    transform: translateX(0);
+  }
+
+  .sidebar-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.65);
+    z-index: 95;
+  }
+
+  .sidebar-backdrop.active {
+    display: block;
+  }
+
+  .main-content {
+    margin-left: 0;
+    width: 100%;
+    max-width: 100vw;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  .menu-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .header-search {
+    display: none; /* Accessible through search page */
+  }
+
+  .page-container {
+    padding: 1.25rem 1rem;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  /* Switch from desktop data table to mobile cards on screens <= 880px */
+  .table-container .data-table-wrapper {
+    display: none;
+  }
+
+  .mobile-cards-grid {
+    display: grid;
+  }
+
+  .profile-hero {
+    flex-direction: column;
+    text-align: center;
+    justify-content: center;
+    align-items: center;
+    padding: 1.5rem;
+  }
+
+  .profile-identity {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .profile-action-bar {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .profile-action-bar .btn {
+    flex: 1 1 45%;
+  }
+
+  .card-preview-container {
+    padding: 1rem;
+    gap: 1.25rem;
+  }
+
+  .id-card {
+    width: 320px;
+    height: 205px;
+  }
+
+  .id-card-photo {
+    width: 60px;
+    height: 60px;
+  }
+
+  .id-card-name {
+    font-size: 0.95rem;
+  }
+}
+
+/* 425px and Below (Standard Mobile Screens) */
+@media (max-width: 425px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .page-actions {
+    width: 100%;
+  }
+
+  .page-actions .btn {
+    flex: 1;
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .demographic-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .demographic-item {
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .demographic-item:last-child {
+    border-bottom: none;
+  }
+
+  .id-card {
+    width: 290px;
+    height: 190px;
+    border-radius: 10px;
+  }
+
+  .id-card-front, .id-card-back {
+    padding: 0.75rem;
+  }
+
+  .id-card-photo {
+    width: 50px;
+    height: 50px;
+  }
+
+  .id-card-name {
+    font-size: 0.88rem;
+  }
+
+  .id-card-id-text {
+    font-size: 0.72rem;
+  }
+
+  .id-card-qr-box {
+    width: 58px;
+    height: 58px;
+  }
+
+  .profile-action-bar .btn {
+    flex: 1 1 100%;
+  }
+}
+
+/* 375px and 320px (Compact Mobile Screens) */
+@media (max-width: 375px) {
+  html {
+    font-size: 14px;
+  }
+
+  .app-header {
+    padding: 0 1rem;
+  }
+
+  .user-info {
+    display: none;
+  }
+
+  .pagination-bar {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+  }
+}
+
+/* ==========================================================================
+   Print Stylesheet (@media print)
+   Hides navigation, controls, headers; formats printable documents
+   ========================================================================== */
+
+@media print {
+  body {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    font-size: 11pt;
+  }
+
+  .sidebar,
+  .app-header,
+  .directory-controls,
+  .pagination-bar,
+  .page-actions,
+  .profile-action-bar,
+  .btn,
+  .toast-container,
+  .modal-overlay,
+  .results-meta-bar,
+  .sidebar-backdrop {
+    display: none !important;
+  }
+
+  .main-content {
+    margin-left: 0 !important;
+    padding: 0 !important;
+  }
+
+  .page-container {
+    padding: 0 !important;
+  }
+
+  .card, .profile-section-card {
+    border: 1px solid #CCC !important;
+    box-shadow: none !important;
+    background: #FFF !important;
+    color: #000 !important;
+    page-break-inside: avoid;
+  }
+
+  /* Member Profile print format */
+  .profile-hero {
+    background: #1D3557 !important;
+    color: #FFFFFF !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    border-radius: 6px;
+    padding: 1.5rem;
+  }
+
+  /* Digital ID card print format */
+  .card-preview-container {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+
+  .id-card {
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    page-break-inside: avoid;
+    margin: 1cm auto;
+  }
+}

@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en" class="no-theme-transition">
+<head>
+  <meta charset="UTF-8" />
+  <script>
+    (function() {
+      try {
+        var t = localStorage.getItem('wcc_theme_preference_v2') || 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+        document.documentElement.style.colorScheme = t;
+      } catch(e) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.documentElement.style.colorScheme = 'dark';
+      }
+      requestAnimationFrame(function() {
+        setTimeout(function() {
+          document.documentElement.classList.remove('no-theme-transition');
+        }, 50);
+      });
+    })();
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Member Profile - WCC Membership Management System</title>
+  <meta name="description" content="View comprehensive individual member profile, download official A4 PDF, generate ID card, and view verification QR." />
+  <link rel="icon" type="image/png" href="assets/logo/WCC_logo.png" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="css/members.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+  <!-- CDN Dependencies -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar" aria-label="Main Navigation">
+      <a href="dashboard.html" class="sidebar-brand">
+        <img src="assets/logo/WCC_logo.png" alt="WCC Emblem" class="sidebar-logo" />
+        <div class="sidebar-brand-text">
+          <span class="sidebar-brand-title">WE CAN CHANGE</span>
+          <span class="sidebar-brand-sub">Membership Portal</span>
+        </div>
+      </a>
+
+      <ul class="sidebar-nav">
+        <li class="nav-section-title">Main Navigation</li>
+        <li class="nav-item">
+          <a href="dashboard.html" class="nav-link">
+            <span class="nav-icon">📊</span>
+            <span>Dashboard</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="members.html" class="nav-link active">
+            <span class="nav-icon">👥</span>
+            <span>All Members</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="members.html?status=active" class="nav-link">
+            <span class="nav-icon">🟢</span>
+            <span>Active Members</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="members.html?status=inactive" class="nav-link">
+            <span class="nav-icon">🔴</span>
+            <span>Inactive Members</span>
+          </a>
+        </li>
+
+        <li class="nav-section-title">Reports & Tools</li>
+        <li class="nav-item">
+          <a href="analytics.html" class="nav-link">
+            <span class="nav-icon">📈</span>
+            <span>Analytics</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="settings.html" class="nav-link">
+            <span class="nav-icon">⚙️</span>
+            <span>Settings</span>
+          </a>
+        </li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <div style="font-size: 0.75rem; color: var(--text-muted);">
+          v2.4.0 &bull; 2026
+        </div>
+        <button type="button" onclick="AUTH.logout()" class="btn btn-sm btn-outline-gold" title="Sign Out">
+          <span>🚪 Logout</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Sticky Header -->
+      <header class="app-header">
+        <div class="header-left">
+          <button type="button" class="menu-toggle" id="menuToggleBtn" aria-label="Toggle Menu">☰</button>
+          <button type="button" id="btnBackToMembers" class="btn btn-sm btn-secondary" style="margin-right: 0.5rem;">
+            &larr; Back to Directory
+          </button>
+        </div>
+
+        <div class="header-right">
+          <button type="button" class="theme-toggle-btn" id="themeToggleBtn" title="Toggle Theme">☀️</button>
+          
+          <div class="user-profile-menu">
+            <img src="assets/logo/WCC_logo.png" alt="Admin Avatar" class="user-avatar" />
+            <div class="user-info">
+              <span class="user-name" id="headerUserName">WCC Admin</span>
+              <span class="user-role" id="headerUserRole">Super Administrator</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Profile Container -->
+      <div class="page-container" id="profileContentArea">
+        <!-- Profile Hero Header Banner -->
+        <div class="profile-hero">
+          <div class="profile-identity">
+            <img 
+              id="profilePhoto" 
+              src="assets/images/default-avatar.svg" 
+              alt="Member Photo" 
+              class="profile-photo-large" 
+            />
+            <div class="profile-name-group">
+              <h1 class="profile-fullname" id="profileName">Loading Profile...</h1>
+              <span class="profile-id-tag" id="profileId">-</span>
+              <div id="profileStatusBadge"></div>
+            </div>
+          </div>
+
+          <!-- Top Action Buttons -->
+          <div class="profile-action-bar">
+            <button type="button" id="btnEditMemberProfile" class="btn btn-primary" title="Edit Member Profile Information">
+              <span>✏️</span> Edit Details
+            </button>
+            <button type="button" id="btnEditStatus" class="btn btn-secondary" title="Change Membership Status">
+              <span>🛡️</span> Edit Status
+            </button>
+            <button type="button" id="btnDownloadPdf" class="btn btn-crimson" title="Download Official A4 PDF Document">
+              <span>📄</span> Download PDF
+            </button>
+            <button type="button" id="btnGenerateQr" class="btn btn-outline-gold" title="Generate Public Verification QR">
+              <span>📱</span> Generate QR
+            </button>
+            <button type="button" id="btnPrintProfile" class="btn btn-secondary" title="Print this profile">
+              <span>🖨️</span> Print
+            </button>
+          </div>
+        </div>
+
+        <!-- Grouped Information Cards -->
+        <div class="profile-sections-grid">
+          <!-- Left Column (Personal & Address) -->
+          <div class="profile-col-8">
+            <!-- 1. Personal Information -->
+            <section class="profile-section-card">
+              <h2 class="profile-section-title">
+                <span>👤</span> Personal Information
+              </h2>
+              <div class="profile-fields-grid" id="personalInfoGrid">
+                <!-- Dynamically populated -->
+              </div>
+            </section>
+
+            <!-- 2. Address Details -->
+            <section class="profile-section-card">
+              <h2 class="profile-section-title">
+                <span>📍</span> Address & Location
+              </h2>
+              <div class="profile-fields-grid" id="addressInfoGrid">
+                <!-- Dynamically populated -->
+              </div>
+            </section>
+
+            <!-- 3. Educational Information -->
+            <section class="profile-section-card">
+              <h2 class="profile-section-title">
+                <span>🎓</span> Educational Information
+              </h2>
+              <div class="profile-fields-grid" id="educationInfoGrid">
+                <!-- Dynamically populated -->
+              </div>
+            </section>
+          </div>
+
+          <!-- Right Column (Professional & WCC Membership) -->
+          <div class="profile-col-4">
+            <!-- 4. WCC Membership Information -->
+            <section class="profile-section-card">
+              <h2 class="profile-section-title">
+                <span>⭐</span> WCC Membership
+              </h2>
+              <div class="profile-fields-grid" style="grid-template-columns: 1fr;" id="wccInfoGrid">
+                <!-- Dynamically populated -->
+              </div>
+            </section>
+
+            <!-- 5. Professional Information -->
+            <section class="profile-section-card">
+              <h2 class="profile-section-title">
+                <span>💼</span> Professional Information
+              </h2>
+              <div class="profile-fields-grid" style="grid-template-columns: 1fr;" id="professionalInfoGrid">
+                <!-- Dynamically populated -->
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Edit Status Modal -->
+  <div class="modal-overlay" id="editStatusModal" role="dialog" aria-modal="true">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Edit Membership Status</h3>
+        <button type="button" class="modal-close" id="btnCloseStatusModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.88rem; color:var(--text-muted); margin-bottom:1rem;">
+          Update the active administrative status for this member. Changes are saved directly to the database.
+        </p>
+        <div class="form-group">
+          <label for="modalStatusSelect" class="form-label">New Status</label>
+          <select id="modalStatusSelect" class="form-control">
+            <option value="Active">🟢 Active</option>
+            <option value="Pending">🟡 Pending</option>
+            <option value="Inactive">🔴 Inactive</option>
+            <option value="Suspended">⚫ Suspended</option>
+            <option value="Rejected">✕ Rejected</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="btnCancelStatusModal" class="btn btn-secondary">Cancel</button>
+        <button type="button" id="btnSaveStatus" class="btn btn-primary">Save Changes</button>
+      </div>
+    </div>
+  <!-- Edit Member Details Modal (with Dynamic Educational Fields) -->
+  <div class="modal-overlay" id="editProfileModal" role="dialog" aria-modal="true">
+    <div class="modal-dialog" style="max-width: 680px;">
+      <div class="modal-header">
+        <h3 class="modal-title">✏️ Edit Member Details</h3>
+        <button type="button" class="modal-close" id="btnCloseEditModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="editProfileForm">
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="editPhone" class="form-label">Mobile Number (মোবাইল)<span class="required-star">*</span></label>
+              <input type="tel" id="editPhone" class="form-control" required />
+            </div>
+            <div class="form-group">
+              <label for="editEmail" class="form-label">Email Address (ইমেইল)<span class="required-star">*</span></label>
+              <input type="email" id="editEmail" class="form-control" required />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="editPresentAddress" class="form-label">Present Address (বর্তমান ঠিকানা)</label>
+            <input type="text" id="editPresentAddress" class="form-control" />
+          </div>
+
+          <div class="form-group">
+            <label for="editPermanentAddress" class="form-label">Permanent Address (স্থায়ী ঠিকানা)</label>
+            <input type="text" id="editPermanentAddress" class="form-control" />
+          </div>
+
+          <!-- Academic Information / শিক্ষাগত তথ্য Section with Dynamic Toggle -->
+          <div style="border-top: 1px solid var(--border-color); padding-top: 1.25rem; margin-top: 1.25rem;">
+            <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--wcc-gold); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+              <span>🎓</span> শিক্ষাগত তথ্য (Educational Information)
+            </h4>
+
+            <div class="form-group" style="margin-bottom: 0.5rem;">
+              <label class="form-label">আপনি কি বর্তমানে অধ্যয়নরত? (Currently Studying?)<span class="required-star">*</span></label>
+              <div class="radio-toggle-group">
+                <label class="radio-card-option" for="admin_study_yes">
+                  <input id="admin_study_yes" type="radio" name="admin_currently_studying" value="হ্যাঁ" required />
+                  <span class="radio-card-label">📖 হ্যাঁ (অধ্যয়নরত)</span>
+                </label>
+                <label class="radio-card-option" for="admin_study_no">
+                  <input id="admin_study_no" type="radio" name="admin_currently_studying" value="না" />
+                  <span class="radio-card-label">🎓 না (স্নাতক / পাশকৃত)</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Shown only when "হ্যাঁ" is selected -->
+            <div class="conditional-block" id="adminStudyingYesBlock">
+              <div class="conditional-inner">
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <label for="editClassYear" class="form-label">কোন শ্রেণি/বর্ষে অধ্যয়নরত?<span class="required-star">*</span></label>
+                    <select id="editClassYear" class="form-control">
+                      <option value="">নির্বাচন করুন</option>
+                      <option value="৬ষ্ঠ শ্রেণি">৬ষ্ঠ শ্রেণি</option>
+                      <option value="৭ম শ্রেণি">৭ম শ্রেণি</option>
+                      <option value="৮ম শ্রেণি">৮ম শ্রেণি</option>
+                      <option value="৯ম শ্রেণি">৯ম শ্রেণি</option>
+                      <option value="১০ম শ্রেণি">১০ম শ্রেণি</option>
+                      <option value="SSC">SSC</option>
+                      <option value="একাদশ শ্রেণি">একাদশ শ্রেণি</option>
+                      <option value="দ্বাদশ শ্রেণি">দ্বাদশ শ্রেণি</option>
+                      <option value="HSC">HSC</option>
+                      <option value="Diploma">Diploma</option>
+                      <option value="১ম বর্ষ">১ম বর্ষ</option>
+                      <option value="২য় বর্ষ">২য় বর্ষ</option>
+                      <option value="৩য় বর্ষ">৩য় বর্ষ</option>
+                      <option value="৪র্থ বর্ষ">৪র্থ বর্ষ</option>
+                      <option value="Masters">Masters</option>
+                      <option value="অন্যান্য">অন্যান্য</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="editCurrentInstitution" class="form-label">বর্তমান প্রতিষ্ঠানের নাম<span class="required-star">*</span></label>
+                    <input type="text" id="editCurrentInstitution" class="form-control" placeholder="যেমন: ঢাকা কলেজ / বরিশাল বিশ্ববিদ্যালয়" />
+                  </div>
+                </div>
+
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <label for="editLastPublicExam" class="form-label">বিগত পাবলিক পরীক্ষা</label>
+                    <select id="editLastPublicExam" class="form-control">
+                      <option value="">নির্বাচন করুন</option>
+                      <option value="PSC / প্রাথমিক শিক্ষা সমাপনী">PSC / প্রাথমিক শিক্ষা সমাপনী</option>
+                      <option value="JSC / জুনিয়র স্কুল সার্টিফিকেট">JSC / জুনিয়র স্কুল সার্টিফিকেট</option>
+                      <option value="SSC / সমমান">SSC / সমমান</option>
+                      <option value="Dakhil / দাখিল">Dakhil / দাখিল</option>
+                      <option value="HSC / সমমান">HSC / সমমান</option>
+                      <option value="Alim / আলিম">Alim / আলিম</option>
+                      <option value="Diploma in Engineering">Diploma in Engineering</option>
+                      <option value="Diploma in Medical Technology">Diploma in Medical Technology</option>
+                      <option value="O-Level">O-Level</option>
+                      <option value="A-Level">A-Level</option>
+                      <option value="সমমানের অন্যান্য পরীক্ষা">সমমানের অন্যান্য পরীক্ষা</option>
+                      <option value="কোনো পাবলিক পরীক্ষা দেওয়া হয়নি">কোনো পাবলিক পরীক্ষা দেওয়া হয়নি</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="editPublicExamResult" class="form-label">পাবলিক পরীক্ষার ফলাফল</label>
+                    <input type="text" id="editPublicExamResult" class="form-control" placeholder="যেমন: GPA 5.00 / CGPA 3.75 / 80%" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Shown only when "না" is selected -->
+            <div class="conditional-block" id="adminStudyingNoBlock">
+              <div class="conditional-inner">
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <label for="editLastQualification" class="form-label">সর্বশেষ শিক্ষাগত যোগ্যতা<span class="required-star">*</span></label>
+                    <select id="editLastQualification" class="form-control">
+                      <option value="">নির্বাচন করুন</option>
+                      <option value="SSC / সমমান">SSC / সমমান</option>
+                      <option value="HSC / সমমান">HSC / সমমান</option>
+                      <option value="Diploma">Diploma</option>
+                      <option value="Bachelor / Honours">Bachelor / Honours</option>
+                      <option value="Masters">Masters</option>
+                      <option value="O-Level">O-Level</option>
+                      <option value="A-Level">A-Level</option>
+                      <option value="অন্যান্য">অন্যান্য</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="editLastResult" class="form-label">সর্বশেষ একাডেমিক ফলাফল<span class="required-star">*</span></label>
+                    <input type="text" id="editLastResult" class="form-control" placeholder="যেমন: GPA 5.00 / CGPA 3.75 / 80%" />
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="editLastInstitution" class="form-label">সর্বশেষ প্রতিষ্ঠানের নাম<span class="required-star">*</span></label>
+                  <input type="text" id="editLastInstitution" class="form-control" placeholder="যেমন: ঢাকা বিশ্ববিদ্যালয়" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-grid-2" style="border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1rem;">
+            <div class="form-group">
+              <label for="editProfession" class="form-label">Profession (পেশা)</label>
+              <input type="text" id="editProfession" class="form-control" />
+            </div>
+            <div class="form-group">
+              <label for="editWorkplace" class="form-label">Workplace (কর্মস্থল)</label>
+              <input type="text" id="editWorkplace" class="form-control" />
+            </div>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="editGender" class="form-label">Gender (লিঙ্গ)</label>
+              <select id="editGender" class="form-control">
+                <option value="">Select Gender</option>
+                <option value="Male">Male (পুরুষ)</option>
+                <option value="Female">Female (মহিলা)</option>
+                <option value="Other">Other (অন্যান্য)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="editBloodGroup" class="form-label">Blood Group</label>
+              <select id="editBloodGroup" class="form-control">
+                <option value="">Select Blood Group</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-grid-1" style="margin-bottom:1rem;">
+            <div class="form-group">
+              <label class="form-label">Profile Photo (Google Drive Upload)</label>
+              <div style="display:flex; gap:0.75rem; align-items:center;">
+                <div style="width:48px; height:48px; border-radius:50%; border:2px solid var(--wcc-gold); overflow:hidden; background:var(--bg-card); flex-shrink:0; display:flex; align-items:center; justify-content:center;">
+                  <img id="editPhotoPreview" src="assets/images/default-avatar.svg" alt="Preview" style="width:100%; height:100%; object-fit:cover;" />
+                </div>
+                <div style="flex:1;">
+                  <input type="file" id="editPhotoFileInput" accept="image/jpeg,image/png,image/webp" style="display:none;" />
+                  <button type="button" class="btn btn-secondary btn-sm" id="btnTriggerPhotoUpload" style="width:100%; font-size:0.78rem;">
+                    📁 Upload New Photo
+                  </button>
+                  <small id="photoUploadFeedback" style="display:block; margin-top:3px; font-size:0.72rem; color:var(--text-muted);">
+                    Max 5MB (Auto-compressed & stored in Google Drive)
+                  </small>
+                </div>
+              </div>
+              <input type="hidden" id="editPhoto" />
+            </div>
+          </div>
+
+          <div class="modal-footer" style="padding: 1rem 0 0 0; margin-top: 1rem; background: none; border-top: 1px solid var(--border-color);">
+            <button type="button" id="btnCancelEditModal" class="btn btn-secondary">Cancel</button>
+            <button type="submit" id="btnSaveProfileChanges" class="btn btn-primary">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR Verification Modal -->
+  <div class="modal-overlay" id="qrModal" role="dialog" aria-modal="true">
+    <div class="modal-dialog" style="max-width: 440px; text-align: center;">
+      <div class="modal-header">
+        <h3 class="modal-title">Public Verification QR</h3>
+        <button type="button" class="modal-close" id="btnCloseQrModal">&times;</button>
+      </div>
+      <div class="modal-body" style="display:flex; flex-direction:column; align-items:center;">
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1.25rem;">
+          Anyone scanning this QR code will be redirected to the secure, public verification page.
+        </p>
+        
+        <div id="qrCodeContainer" style="background:#FFF; padding:12px; border-radius:10px; border:2px solid var(--wcc-gold); margin-bottom:1.25rem;">
+          <!-- QRCode.js renders here -->
+        </div>
+
+        <div class="form-group" style="width:100%; text-align:left;">
+          <label class="form-label">Verification URL</label>
+          <div style="display:flex; gap:0.5rem;">
+            <input type="text" id="qrLinkText" class="form-control" readonly style="font-size:0.75rem;" />
+            <button type="button" id="btnCopyQrLink" class="btn btn-secondary btn-sm" title="Copy URL">Copy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/mockData.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/qr.js"></script>
+  <script src="js/pdf.js"></script>
+  <script src="js/member.js"></script>
+</body>
+</html>

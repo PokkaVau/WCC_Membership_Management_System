@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en" class="no-theme-transition">
+<head>
+  <meta charset="UTF-8" />
+  <script>
+    (function() {
+      try {
+        var t = localStorage.getItem('wcc_theme_preference_v2') || 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+        document.documentElement.style.colorScheme = t;
+      } catch(e) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.documentElement.style.colorScheme = 'dark';
+      }
+      requestAnimationFrame(function() {
+        setTimeout(function() {
+          document.documentElement.classList.remove('no-theme-transition');
+        }, 50);
+      });
+    })();
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Analytics & Reports - WCC Membership Management System</title>
+  <meta name="description" content="In-depth analytics, blood group distribution, demographic trends, and district representations for We Can Change (WCC)." />
+  <link rel="icon" type="image/png" href="assets/logo/WCC_logo.png" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="css/members.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar" aria-label="Main Navigation">
+      <a href="dashboard.html" class="sidebar-brand">
+        <img src="assets/logo/WCC_logo.png" alt="WCC Emblem" class="sidebar-logo" />
+        <div class="sidebar-brand-text">
+          <span class="sidebar-brand-title">WE CAN CHANGE</span>
+          <span class="sidebar-brand-sub">Membership Portal</span>
+        </div>
+      </a>
+
+      <ul class="sidebar-nav">
+        <li class="nav-section-title">Main Navigation</li>
+        <li class="nav-item">
+          <a href="dashboard.html" class="nav-link">
+            <span class="nav-icon">📊</span>
+            <span>Dashboard</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="members.html" class="nav-link">
+            <span class="nav-icon">👥</span>
+            <span>All Members</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="members.html?status=active" class="nav-link">
+            <span class="nav-icon">🟢</span>
+            <span>Active Members</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="members.html?status=inactive" class="nav-link">
+            <span class="nav-icon">🔴</span>
+            <span>Inactive Members</span>
+          </a>
+        </li>
+
+        <li class="nav-section-title">Reports & Tools</li>
+        <li class="nav-item">
+          <a href="analytics.html" class="nav-link active">
+            <span class="nav-icon">📈</span>
+            <span>Analytics</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="settings.html" class="nav-link">
+            <span class="nav-icon">⚙️</span>
+            <span>Settings</span>
+          </a>
+        </li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <div style="font-size: 0.75rem; color: var(--text-muted);">
+          v2.4.0 &bull; 2026
+        </div>
+        <button type="button" onclick="AUTH.logout()" class="btn btn-sm btn-outline-gold" title="Sign Out">
+          <span>🚪 Logout</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Header -->
+      <header class="app-header">
+        <div class="header-left">
+          <button type="button" class="menu-toggle" id="menuToggleBtn" aria-label="Toggle Menu">☰</button>
+          <div class="header-search">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="headerGlobalSearch" placeholder="Search members by name, ID, phone..." />
+          </div>
+        </div>
+
+        <div class="header-right">
+          <button type="button" class="theme-toggle-btn" id="themeToggleBtn" title="Toggle Theme">☀️</button>
+          
+          <div class="user-profile-menu">
+            <img src="assets/logo/WCC_logo.png" alt="Admin Avatar" class="user-avatar" />
+            <div class="user-info">
+              <span class="user-name" id="headerUserName">WCC Admin</span>
+              <span class="user-role" id="headerUserRole">Super Administrator</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Page Content -->
+      <div class="page-container">
+        <!-- Page Header -->
+        <div class="page-header">
+          <div class="page-title-group">
+            <h1 class="page-title">Membership Analytics & Insights</h1>
+            <p class="page-subtitle">Interactive demographic, geographic, and organizational charts computed directly from the data source.</p>
+          </div>
+          <div class="page-actions">
+            <button type="button" onclick="window.print()" class="btn btn-secondary">
+              <span>🖨️</span> Print Report
+            </button>
+            <a href="members.html" class="btn btn-primary">
+              <span>👥</span> View Member List
+            </a>
+          </div>
+        </div>
+
+        <!-- Demographic Quick Strip -->
+        <div class="demographic-strip">
+          <div class="demographic-item">
+            <span class="label">Total Members</span>
+            <span class="val" id="analyticsTotal">-</span>
+          </div>
+          <div class="demographic-item">
+            <span class="label">Districts Active</span>
+            <span class="val" id="analyticsDistricts">-</span>
+          </div>
+          <div class="demographic-item">
+            <span class="label">Upazilas Covered</span>
+            <span class="val" id="analyticsUpazilas">-</span>
+          </div>
+          <div class="demographic-item">
+            <span class="label">Average Member Age</span>
+            <span class="val" id="analyticsAvgAge">-</span>
+          </div>
+        </div>
+
+        <!-- 6 Interactive Chart Cards Grid -->
+        <div class="charts-grid">
+          <!-- 1. Blood Group Distribution -->
+          <div class="chart-card chart-card-half">
+            <div class="chart-header">
+              <h3 class="chart-title">
+                <span class="chart-title-icon">🩸</span> Blood Group Distribution
+              </h3>
+              <span class="chart-subtitle">Emergency Resource Inventory</span>
+            </div>
+            <div class="chart-body">
+              <canvas id="chartBloodGroup"></canvas>
+            </div>
+          </div>
+
+          <!-- 2. Gender Ratio -->
+          <div class="chart-card chart-card-half">
+            <div class="chart-header">
+              <h3 class="chart-title">
+                <span class="chart-title-icon">⚖️</span> Gender Ratio
+              </h3>
+              <span class="chart-subtitle">Diversity & Inclusion</span>
+            </div>
+            <div class="chart-body">
+              <canvas id="chartGender"></canvas>
+            </div>
+          </div>
+
+          <!-- 3. Members by District -->
+          <div class="chart-card chart-card-half">
+            <div class="chart-header">
+              <h3 class="chart-title">
+                <span class="chart-title-icon">🗺️</span> Members by District
+              </h3>
+              <span class="chart-subtitle">Top Represented Districts</span>
+            </div>
+            <div class="chart-body">
+              <canvas id="chartDistrict"></canvas>
+            </div>
+          </div>
+
+          <!-- 4. Members by Upazila -->
+          <div class="chart-card chart-card-half">
+            <div class="chart-header">
+              <h3 class="chart-title">
+                <span class="chart-title-icon">🏘️</span> Members by Upazila
+              </h3>
+              <span class="chart-subtitle">Local Regional Coverage</span>
+            </div>
+            <div class="chart-body">
+              <canvas id="chartUpazila"></canvas>
+            </div>
+          </div>
+
+          <!-- 5. Age Demographics -->
+          <div class="chart-card chart-card-half">
+            <div class="chart-header">
+              <h3 class="chart-title">
+                <span class="chart-title-icon">🎂</span> Age Demographics
+              </h3>
+              <span class="chart-subtitle">Under 18, 18–25, 26–35, 36–50, 50+</span>
+            </div>
+            <div class="chart-body">
+              <canvas id="chartAgeGroup"></canvas>
+            </div>
+          </div>
+
+          <!-- 6. Registration Trend -->
+          <div class="chart-card chart-card-half">
+            <div class="chart-header">
+              <h3 class="chart-title">
+                <span class="chart-title-icon">📈</span> Registration Timeline Trend
+              </h3>
+              <span class="chart-subtitle">Growth Over Time</span>
+            </div>
+            <div class="chart-body">
+              <canvas id="chartRegistrationTrend"></canvas>
+            </div>
+          </div>
+
+          <!-- 7. Wing Distribution (WCC Official Wings) -->
+          <div class="chart-card chart-card-half">
+            <div class="chart-header">
+              <h3 class="chart-title">
+                <span class="chart-title-icon">🦅</span> Members by Wing (উইং বণ্টন)
+              </h3>
+              <span class="chart-subtitle">শিক্ষা, সাংস্কৃতিক, স্বাস্থ্য, খেলাধুলা ও পরিবেশ</span>
+            </div>
+            <div class="chart-body">
+              <canvas id="chartWing"></canvas>
+            </div>
+          </div>
+
+          <!-- 8. Membership Type Breakdown -->
+          <div class="chart-card chart-card-half">
+            <div class="chart-header">
+              <h3 class="chart-title">
+                <span class="chart-title-icon">🎖️</span> Membership Classification
+              </h3>
+              <span class="chart-subtitle">General vs Lifetime Members</span>
+            </div>
+            <div class="chart-body">
+              <canvas id="chartMembershipType"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/mockData.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/analytics.js"></script>
+</body>
+</html>

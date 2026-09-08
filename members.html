@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en" class="no-theme-transition">
+<head>
+  <meta charset="UTF-8" />
+  <script>
+    (function() {
+      try {
+        var t = localStorage.getItem('wcc_theme_preference_v2') || 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+        document.documentElement.style.colorScheme = t;
+      } catch(e) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.documentElement.style.colorScheme = 'dark';
+      }
+      requestAnimationFrame(function() {
+        setTimeout(function() {
+          document.documentElement.classList.remove('no-theme-transition');
+        }, 50);
+      });
+    })();
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://script.google.com https://script.googleusercontent.com;" />
+  <title>All Members - WCC Membership Management System</title>
+  <meta name="description" content="Search, filter, sort, and manage We Can Change (WCC) registered members." />
+  <link rel="icon" type="image/png" href="assets/logo/WCC_logo.png" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="css/members.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+  <!-- CDN Dependencies -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar" aria-label="Main Navigation">
+      <a href="dashboard.html" class="sidebar-brand">
+        <img src="assets/logo/WCC_logo.png" alt="WCC Emblem" class="sidebar-logo" />
+        <div class="sidebar-brand-text">
+          <span class="sidebar-brand-title">WE CAN CHANGE</span>
+          <span class="sidebar-brand-sub">Membership Portal</span>
+        </div>
+      </a>
+
+      <ul class="sidebar-nav">
+        <li class="nav-section-title">Main Navigation</li>
+        <li class="nav-item">
+          <a href="dashboard.html" class="nav-link">
+            <span class="nav-icon">📊</span>
+            <span>Dashboard</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="members.html" class="nav-link active">
+            <span class="nav-icon">👥</span>
+            <span>All Members</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="members.html?status=active" class="nav-link">
+            <span class="nav-icon">🟢</span>
+            <span>Active Members</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="members.html?status=inactive" class="nav-link">
+            <span class="nav-icon">🔴</span>
+            <span>Inactive Members</span>
+          </a>
+        </li>
+
+        <li class="nav-section-title">Reports & Tools</li>
+        <li class="nav-item">
+          <a href="analytics.html" class="nav-link">
+            <span class="nav-icon">📈</span>
+            <span>Analytics</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="settings.html" class="nav-link">
+            <span class="nav-icon">⚙️</span>
+            <span>Settings</span>
+          </a>
+        </li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <div style="font-size: 0.75rem; color: var(--text-muted);">
+          v2.4.0 &bull; 2026
+        </div>
+        <button type="button" onclick="AUTH.logout()" class="btn btn-sm btn-outline-gold" title="Sign Out">
+          <span>🚪 Logout</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Sticky Header -->
+      <header class="app-header">
+        <div class="header-left">
+          <button type="button" class="menu-toggle" id="menuToggleBtn" aria-label="Toggle Menu">☰</button>
+          <div class="header-search">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="headerGlobalSearch" placeholder="Search members by name, ID, phone..." />
+          </div>
+        </div>
+
+        <div class="header-right">
+          <button type="button" class="theme-toggle-btn" id="themeToggleBtn" title="Toggle Theme">☀️</button>
+          
+          <div class="user-profile-menu">
+            <img src="assets/logo/WCC_logo.png" alt="Admin Avatar" class="user-avatar" />
+            <div class="user-info">
+              <span class="user-name" id="headerUserName">WCC Admin</span>
+              <span class="user-role" id="headerUserRole">Super Administrator</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Page Content -->
+      <div class="page-container">
+        <!-- Page Header -->
+        <div class="page-header">
+          <div class="page-title-group">
+            <h1 class="page-title">Member Directory</h1>
+            <p class="page-subtitle">Search, filter, inspect profiles, generate PDFs, and issue digital membership cards.</p>
+          </div>
+          <div class="page-actions">
+            <button type="button" id="exportFilteredBtn" class="btn btn-secondary">
+              <span>📥</span> Export Filtered (CSV)
+            </button>
+            <button type="button" id="exportAllBtn" class="btn btn-primary">
+              <span>📊</span> Export All (CSV)
+            </button>
+          </div>
+        </div>
+
+        <!-- Directory Controls (Search + Filter Panel) -->
+        <div class="directory-controls">
+          <div class="search-and-quick-filters">
+            <div class="search-input-group">
+              <span class="search-icon">🔍</span>
+              <input 
+                type="text" 
+                id="memberSearchInput" 
+                placeholder="Search across Name, Member ID, Phone, Email, Blood group, District, Upazila..." 
+              />
+            </div>
+            <button type="button" id="filterToggleBtn" class="filter-toggle-btn">
+              <span>⚙️</span> Advanced Filters
+            </button>
+          </div>
+
+          <!-- Advanced Filters Collapsible Grid -->
+          <div id="filterPanel" class="filter-panel hidden">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="filterStatus">Status</label>
+              <select id="filterStatus" class="form-control filter-input">
+                <option value="">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="pending">Pending</option>
+                <option value="inactive">Inactive</option>
+                <option value="suspended">Suspended</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="filterGender">Gender</label>
+              <select id="filterGender" class="form-control filter-input">
+                <option value="">All Genders</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="filterBloodGroup">Blood Group</label>
+              <select id="filterBloodGroup" class="form-control filter-input">
+                <option value="">All Blood Groups</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="filterDistrict">District</label>
+              <select id="filterDistrict" class="form-control filter-input">
+                <option value="">All Districts</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="filterUpazila">Upazila</label>
+              <select id="filterUpazila" class="form-control filter-input">
+                <option value="">All Upazilas</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="filterWing">Wing (উইং)</label>
+              <select id="filterWing" class="form-control filter-input">
+                <option value="">All Wings</option>
+                <option value="শিক্ষা উইং">শিক্ষা উইং</option>
+                <option value="সাংস্কৃতিক উইং">সাংস্কৃতিক উইং</option>
+                <option value="স্বাস্থ্য উইং">স্বাস্থ্য উইং</option>
+                <option value="খেলাধুলা উইং">খেলাধুলা উইং</option>
+                <option value="পরিবেশ সংরক্ষণ উইং">পরিবেশ সংরক্ষণ উইং</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="filterMembership">Membership Type</label>
+              <select id="filterMembership" class="form-control filter-input">
+                <option value="">All Types</option>
+                <option value="General">General Member</option>
+                <option value="Lifetime">Lifetime Member</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="filterStudent">Currently Studying</label>
+              <select id="filterStudent" class="form-control filter-input">
+                <option value="">All Categories</option>
+                <option value="student">Currently Studying (হ্যাঁ)</option>
+                <option value="non-student">Graduated / Working (না)</option>
+              </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="filterProfession">Profession</label>
+              <input type="text" id="filterProfession" class="form-control filter-input" placeholder="e.g. Engineer, Doctor, Student" />
+            </div>
+
+            <div class="filter-actions">
+              <button type="button" id="resetFiltersBtn" class="btn btn-sm btn-secondary">Reset Filters</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Meta count & Sorting bar -->
+        <div class="results-meta-bar">
+          <div id="resultsCountDisplay" class="results-count">
+            Loading members...
+          </div>
+          <div class="sort-group">
+            <label for="sortBySelect">Sort by:</label>
+            <select id="sortBySelect" class="form-control" style="width: auto; padding: 0.4rem 2rem 0.4rem 0.8rem; font-size: 0.85rem;">
+              <option value="newest">Registration (Newest first)</option>
+              <option value="oldest">Registration (Oldest first)</option>
+              <option value="name_asc">Name (A-Z)</option>
+              <option value="name_desc">Name (Z-A)</option>
+              <option value="id_asc">Member ID</option>
+              <option value="dob">Date of Birth</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Desktop Members Table Container -->
+        <div class="table-container">
+          <div class="data-table-wrapper">
+            <table class="data-table" aria-label="Member Directory">
+              <thead>
+                <tr>
+                  <th style="min-width: 220px;">Member</th>
+                  <th>Blood</th>
+                  <th style="min-width: 180px;">Contact</th>
+                  <th style="min-width: 140px;">Location</th>
+                  <th>Status</th>
+                  <th>Registered</th>
+                  <th style="text-align: right; padding-right: 1.5rem;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="membersTableBody">
+                <!-- Populated via members.js -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Mobile Cards Grid (Rendered automatically on <768px screens) -->
+          <div id="mobileCardsContainer" class="mobile-cards-grid" style="padding: 1rem;">
+            <!-- Populated via members.js -->
+          </div>
+
+          <!-- Pagination Bar -->
+          <div class="pagination-bar">
+            <div class="page-size-selector">
+              <span>Show:</span>
+              <select id="pageSizeSelect">
+                <option value="10">10 per page</option>
+                <option value="25" selected>25 per page</option>
+                <option value="50">50 per page</option>
+                <option value="100">100 per page</option>
+              </select>
+            </div>
+            <div class="pagination-controls" id="paginationControls">
+              <!-- Dynamically rendered -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Application Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/mockData.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/pdf.js"></script>
+  <script src="js/members.js"></script>
+</body>
+</html>

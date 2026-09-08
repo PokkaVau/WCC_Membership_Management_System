@@ -5,8 +5,8 @@
  */
 
 const API = {
-  CACHE_KEY: 'wcc_members_cache_v3',
-  CACHE_TIME_KEY: 'wcc_members_cache_time_v3',
+  CACHE_KEY: 'wcc_members_cache_v4',
+  CACHE_TIME_KEY: 'wcc_members_cache_time_v4',
 
   _inFlightFetchPromise: null,
 

@@ -133,6 +133,134 @@ const UTILS = {
   },
 
   /**
+   * Normalize blood group to standard English representation
+   * Handles English (A+, B-, etc.), Bengali (এ+, বি+, ও+, এবি+), and formatting variations
+   */
+  normalizeBloodGroup(bg) {
+    if (!bg || typeof bg !== 'string') return '';
+    const clean = bg.trim();
+    if (!clean) return '';
+
+    const bMap = {
+      'এ+': 'A+', 'এ-': 'A-', 'এ +': 'A+', 'এ -': 'A-',
+      'বি+': 'B+', 'বি-': 'B-', 'বি +': 'B+', 'বি -': 'B-',
+      'এবি+': 'AB+', 'এবি-': 'AB-', 'এবি +': 'AB+', 'এবি -': 'AB-',
+      'ও+': 'O+', 'ও-': 'O-', 'ও +': 'O+', 'ও -': 'O-',
+      'o+': 'O+', 'o-': 'O-', 'a+': 'A+', 'a-': 'A-',
+      'b+': 'B+', 'b-': 'B-', 'ab+': 'AB+', 'ab-': 'AB-',
+      'A +': 'A+', 'A -': 'A-', 'B +': 'B+', 'B -': 'B-',
+      'O +': 'O+', 'O -': 'O-', 'AB +': 'AB+', 'AB -': 'AB-'
+    };
+
+    if (bMap[clean]) return bMap[clean];
+
+    // Regex check for Bengali characters in case of zero-width or special characters
+    if (clean.includes('এবি') || clean.includes('AB')) return clean.includes('-') ? 'AB-' : 'AB+';
+    if (clean.includes('বি') || clean.startsWith('B') || clean.startsWith('b')) return clean.includes('-') ? 'B-' : 'B+';
+    if (clean.includes('এ') || clean.startsWith('A') || clean.startsWith('a')) return clean.includes('-') ? 'A-' : 'A+';
+    if (clean.includes('ও') || clean.startsWith('O') || clean.startsWith('o') || clean.startsWith('0')) return clean.includes('-') ? 'O-' : 'O+';
+
+    const upper = clean.toUpperCase().replace(/\s+/g, '');
+    const valid = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
+    return valid.includes(upper) ? upper : upper;
+  },
+
+  /**
+   * Smart Gender Inference: Respects explicit gender if present;
+   * otherwise infers gender with high accuracy using Bengali and English honorifics/names.
+   */
+  inferGender(nameEn, nameBn, explicitGender) {
+    if (explicitGender && typeof explicitGender === 'string') {
+      const ex = explicitGender.trim().toLowerCase();
+      if (ex === 'male' || ex === 'পুরুষ' || ex === 'ছেলে' || ex === 'm') return 'Male';
+      if (ex === 'female' || ex === 'নারী' || ex === 'মহিলা' || ex === 'মেয়ে' || ex === 'মেয়ে' || ex === 'f') return 'Female';
+      if (ex === 'other' || ex === 'তৃতীয় লিঙ্গ' || ex === 'অন্যান্য') return 'Other';
+    }
+
+    const combined = `${nameBn || ''} ${nameEn || ''}`.toLowerCase();
+    if (!combined.trim()) return 'Not Specified';
+
+    // Female indicators (English & Bengali tokens)
+    const femaleTokens = [
+      'mst', 'mosammat', 'mrs', 'miss', 'begum', 'khatun', 'aktar', 'akter',
+      'sultana', 'jahan', 'nahar', 'parvin', 'poly', 'tuba', 'tisha', 'mim',
+      'moni', 'eva', 'jannat', 'jannatul', 'fatema', 'fatima', 'afrin', 'nusrat',
+      'sadia', 'salma', 'sumaiya', 'samia', 'tasnim', 'fahmida', 'humaira',
+      'marzia', 'roksana', 'shahnaz', 'yasmin', 'sharmin', 'ayshi', 'arthi',
+      'othi', 'maria', 'debiyanka', 'rani', 'mitra', 'purnota', 'taharina',
+      'taufe', 'lema', 'lima', 'tamanna', 'rimiaj', 'mumu', 'jui', 'trisha',
+      'meghla', 'shila', 'afroza', 'subarna', 'sanjida', 'arpita', 'ayesha',
+      'siddika', 'arpa', 'tethi', 'nisha', 'hamida', 'subaita', 'subah',
+      'manha', 'saptorshi', 'sohini', 'banu', 'marjan', 'srotee', 'shatosree'
+    ];
+
+    const femaleBnTokens = [
+      'মোসাঃ', 'মোসাম্মৎ', 'মোছাম্মৎ', 'মিসেস', 'মিস', 'বেগম', 'খাতুন', 'আক্তার', 'আকতার',
+      'সুলতানা', 'জাহান', 'নাহার', 'পারভীন', 'পারভিন', 'পলি', 'তুবা', 'তিশা', 'মিম',
+      'মণি', 'মনি', 'ইভা', 'জান্নাত', 'জান্নাতুল', 'ফাতেমা', 'আফরিন', 'নুসরাত',
+      'সাদিয়া', 'সাদিয়া', 'সালমা', 'সুমাইয়া', 'সুমাইয়া', 'সামিয়া', 'সামিয়া',
+      'তাসনিম', 'ফাহমিদা', 'হুমায়রা', 'হুমায়রা', 'মার্জিয়া', 'মার্জিয়া',
+      'রোকসানা', 'শাহনাজ', 'ইয়াসমিন', 'ইয়াসমিন', 'শারমিন', 'ঐশী', 'অথি',
+      'মারিয়া', 'মারিয়া', 'দিবিয়াংকা', 'দিবিয়াংকা', 'রানী', 'রাণী', 'মিত্র',
+      'পূর্নতা', 'পূর্ণতা', 'তাহারিনা', 'তাওফি', 'লিমা', 'লেমা', 'তামান্না',
+      'রিমিয়াজ', 'রিমিয়াজ', 'মুমু', 'জুই', 'জুঁই', 'ত্রিশা', 'মেঘলা', 'শিলা',
+      'আফরোজা', 'সুবর্ণা', 'সানজিদা', 'অর্পিতা', 'আয়েশা', 'আয়েশা', 'সিদ্দিকা',
+      'অর্পা', 'তিথী', 'নিশা', 'হামিদা', 'সুবাইতা', 'সুবাহ', 'মানহা', 'সপ্তর্ষী',
+      'সোহিনী', 'বানু', 'মারজান', 'স্রোতি', 'শতশ্রী', 'মহিলা', 'নারী'
+    ];
+
+    for (const token of femaleTokens) {
+      const regex = new RegExp(`(^|[^a-z])${token}([^a-z]|$)`, 'i');
+      if (regex.test(combined)) return 'Female';
+    }
+    for (const token of femaleBnTokens) {
+      if (combined.includes(token)) return 'Female';
+    }
+
+    // Male indicators (English & Bengali tokens)
+    const maleTokens = [
+      'md', 'mohammad', 'mohammed', 'muhammad', 'mr', 'sheikh', 'ahmed', 'ahmad',
+      'khan', 'ali', 'hossain', 'hossan', 'hasan', 'hassan', 'chowdhury', 'rahman',
+      'islam', 'uddin', 'kabir', 'alam', 'reza', 'mahmud', 'zayed', 'raian',
+      'sayod', 'solaiman', 'bayezid', 'shahria', 'shahriar', 'sushen', 'chandra',
+      'howlader', 'rony', 'rana', 'rakib', 'shuvo', 'tanvir', 'sohan', 'sabbir',
+      'mehedi', 'arif', 'mahfuz', 'kamal', 'saif', 'shakil', 'shanto', 'hridoy',
+      'das', 'jeet', 'nafis', 'shafwan', 'argho', 'sifat', 'aman', 'imran',
+      'talukder', 'talukdar', 'yasin', 'arafat', 'arafath', 'siam', 'joy',
+      'dip', 'sajid', 'alvi', 'nahian', 'fahim', 'tasin', 'tamim', 'sakib',
+      'ashik', 'hasib', 'sakibul', 'emon', 'ashikur', 'sazzadul', 'hoque',
+      'ronit', 'adhikary', 'amirul', 'momenine', 'efty', 'golam', 'rabby',
+      'munam', 'morshed', 'lohan', 'riad', 'abdulla', 'akram', 'nirjon'
+    ];
+
+    const maleBnTokens = [
+      'মোঃ', 'মো:', 'মোহাম্মদ', 'মুহাম্মদ', 'মিঃ', 'জনাব', 'শেখ', 'মির্জা',
+      'আহমেদ', 'আহমদ', 'খান', 'আলী', 'আলি', 'হোসেন', 'হাসান', 'চৌধুরী',
+      'রহমান', 'ইসলাম', 'উদ্দিন', 'কবির', 'আলম', 'রেজা', 'মাহমুদ', 'জায়িদ',
+      'জাহিদ', 'রায়হান', 'রায়ান', 'সৈয়দ', 'সোলাইমান', 'বায়েজিদ', 'শাহরিয়ার',
+      'সুষেন', 'চন্দ্র', 'হাওলাদার', 'রনি', 'রানা', 'রাকিব', 'শুভ', 'তানভীর',
+      'তানভির', 'সোহান', 'সাব্বির', 'মেহেদী', 'আরিফ', 'মাহফুজ', 'কামাল',
+      'সাইফ', 'শাকিল', 'শান্ত', 'হৃদয়', 'হৃদয়', 'দাস', 'জিৎ', 'নাফিছ',
+      'নাফিস', 'ছাফওয়ান', 'সাফওয়ান', 'অর্ঘ্য', 'অর্ঘ‍্য', 'সিফাত', 'আমান',
+      'ইমরান', 'তালুকদার', 'ইয়াছিন', 'ইয়াসিন', 'আরাফাত', 'সিয়াম', 'জয়',
+      'দ্বীপ', 'দিপ', 'সাজিদ', 'আলভি', 'নাহিয়ান', 'নাহিয়ান', 'ফাহিম', 'তাসিন',
+      'তামিম', 'সাকিব', 'আশিক', 'হাসিব', 'ইমন', 'সাজ্জাদুল', 'হক', 'রণিত',
+      'অধিকারী', 'আমিরুল', 'মোমেনিন', 'ইফতি', 'গোলাম', 'রাব্বি', 'মুনাম',
+      'মোর্শেদ', 'লোহান', 'রিয়াদ', 'রিয়াদুল', 'আকরাম', 'নির্জন', 'পুরুষ'
+    ];
+
+    for (const token of maleTokens) {
+      const regex = new RegExp(`(^|[^a-z])${token}([^a-z]|$)`, 'i');
+      if (regex.test(combined)) return 'Male';
+    }
+    for (const token of maleBnTokens) {
+      if (combined.includes(token)) return 'Male';
+    }
+
+    return 'Not Specified';
+  },
+
+  /**
    * Extract District and Upazila automatically from address text
    */
   extractLocation(presentAddr, permanentAddr) {
@@ -301,17 +429,11 @@ const UTILS = {
     normalized.formattedRegDate = this.formatDate(normalized.registrationDate || normalized.timestamp);
     normalized.formattedJoiningDate = this.formatDate(normalized.joiningDate || normalized.registrationDate || normalized.timestamp);
 
-    // Blood group clean & normalization (Support Bengali: 'এ+', 'বি+', 'ও+', 'এবি+' & English: 'A+', 'B+', 'O+', 'AB+')
-    if (normalized.bloodGroup) {
-      const bMap = {
-        'এ+': 'A+', 'এ-': 'A-',
-        'বি+': 'B+', 'বি-': 'B-',
-        'এবি+': 'AB+', 'এবি-': 'AB-',
-        'ও+': 'O+', 'ও-': 'O-'
-      };
-      const cleaned = normalized.bloodGroup.trim();
-      normalized.bloodGroup = bMap[cleaned] || cleaned.toUpperCase().replace(/\s+/g, '');
-    }
+    // Blood group clean & normalization (Full Bengali & English support)
+    normalized.bloodGroup = this.normalizeBloodGroup(normalized.bloodGroup);
+
+    // Smart Gender Normalization & Cultural Inference
+    normalized.gender = this.inferGender(normalized.nameEn, normalized.nameBn, normalized.gender);
 
     // Student flag based on Form-V2 "বর্তমানে অধ্যয়নরত?" conditional logic
     normalized.isStudent = (

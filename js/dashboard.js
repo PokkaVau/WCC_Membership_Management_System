@@ -169,7 +169,10 @@ async function downloadMemberPDFDirectly(memberId) {
  * Render Dashboard Chart Previews
  */
 function renderPreviewCharts(members) {
-  if (typeof Chart === 'undefined') return;
+  if (typeof Chart === 'undefined') {
+    console.warn('Chart.js library is not loaded; dashboard preview charts skipped.');
+    return;
+  }
 
   const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
   const textColor = isDark ? '#D1D5DB' : '#4B5563';

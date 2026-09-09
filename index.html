@@ -21,8 +21,8 @@
   </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://script.google.com https://script.googleusercontent.com;" />
-  <title>Admin Login - WCC Membership Management System</title>
-  <meta name="description" content="Administrative login portal for We Can Change (WCC) Membership Management & Member Directory System." />
+  <title>Portal Login - We Can Change (WCC)</title>
+  <meta name="description" content="Role-based login portal for We Can Change (WCC) - Admin Dashboard & Member Self-Service." />
   <link rel="icon" type="image/png" href="assets/logo/WCC_logo.png" />
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="css/responsive.css" />
@@ -33,19 +33,20 @@
       align-items: center;
       justify-content: center;
       padding: 1.5rem;
-      background: radial-gradient(circle at 50% 25%, #1D3557 0%, #0F1218 80%);
+      background: radial-gradient(circle at 50% 25%, #1D3557 0%, #0F1218 85%);
     }
 
     .login-card {
       width: 100%;
-      max-width: 440px;
+      max-width: 470px;
       background-color: var(--bg-card);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-lg);
-      padding: 2.5rem 2.25rem;
+      padding: 2.25rem 2rem;
       box-shadow: var(--shadow-lg);
       position: relative;
       overflow: hidden;
+      transition: border-color var(--transition-fast);
     }
 
     .login-card::before {
@@ -58,49 +59,241 @@
       background: linear-gradient(90deg, var(--wcc-gold), var(--wcc-crimson));
     }
 
+    .card-theme-toggle {
+      position: absolute;
+      top: 1.25rem;
+      right: 1.25rem;
+      z-index: 10;
+    }
+
     .login-brand-header {
       text-align: center;
-      margin-bottom: 2rem;
+      margin-bottom: 1.5rem;
     }
 
     .login-logo {
-      width: 76px;
-      height: 76px;
-      margin: 0 auto 1rem;
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 0.75rem;
       display: block;
       border-radius: 50%;
       box-shadow: var(--shadow-gold);
+      transition: transform 0.3s ease;
+    }
+
+    .login-logo:hover {
+      transform: scale(1.05);
     }
 
     .login-title {
-      font-size: 1.4rem;
+      font-size: 1.35rem;
       font-weight: 800;
       color: var(--text-primary);
       letter-spacing: -0.5px;
+      line-height: 1.2;
     }
 
     .login-subtitle {
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       color: var(--text-muted);
       margin-top: 0.25rem;
     }
 
+    /* Role Switcher Tabs */
+    .role-tabs-container {
+      display: flex;
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 0.35rem;
+      gap: 0.35rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .role-tab {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.65rem 0.5rem;
+      border-radius: calc(var(--radius-md) - 2px);
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      user-select: none;
+    }
+
+    .role-tab:hover {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .role-tab.active {
+      background: var(--bg-secondary);
+      color: var(--text-gold);
+      border-color: var(--border-color);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .role-tab-icon {
+      font-size: 1.15rem;
+    }
+
+    .role-tab-label {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      text-align: left;
+      line-height: 1.2;
+    }
+
+    .role-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .role-desc {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .role-tab.active .role-desc {
+      color: var(--text-secondary);
+    }
+
+    /* Portal Badge Banner */
+    .portal-badge-banner {
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-md);
+      margin-bottom: 1.25rem;
+      background: rgba(29, 53, 87, 0.25);
+      border: 1px solid rgba(241, 173, 26, 0.2);
+      transition: all 0.3s ease;
+    }
+
+    .portal-badge-banner.member-mode {
+      background: rgba(22, 144, 83, 0.12);
+      border-color: rgba(22, 144, 83, 0.3);
+    }
+
+    .portal-badge-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.25rem;
+    }
+
+    .portal-badge-pill {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--wcc-gold);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .portal-badge-banner.member-mode .portal-badge-pill {
+      color: #2ECC71;
+    }
+
+    .portal-badge-desc {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin: 0;
+      line-height: 1.4;
+    }
+
+    /* Alert Box */
     .login-alert {
       display: none;
       padding: 0.75rem 1rem;
       border-radius: var(--radius-md);
       margin-bottom: 1.25rem;
       font-size: 0.85rem;
+      align-items: flex-start;
+      gap: 0.65rem;
+    }
+
+    .login-alert.show {
+      display: flex;
+    }
+
+    .login-alert.alert-error {
       background-color: rgba(182, 42, 53, 0.15);
-      border: 1px solid rgba(182, 42, 53, 0.4);
-      color: #FF6B6B;
+      border: 1px solid rgba(182, 42, 53, 0.45);
+      color: #FF7B7B;
+    }
+
+    .login-alert.alert-success {
+      background-color: rgba(46, 204, 113, 0.15);
+      border: 1px solid rgba(46, 204, 113, 0.45);
+      color: #2ECC71;
+    }
+
+    .alert-icon {
+      font-size: 1.15rem;
+      line-height: 1;
+    }
+
+    .alert-content {
+      flex: 1;
+    }
+
+    .alert-title {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 0.2rem;
+    }
+
+    .alert-message {
+      font-size: 0.82rem;
+      line-height: 1.35;
+    }
+
+    /* Input wrapper for password eye toggle */
+    .password-input-wrapper {
+      position: relative;
+    }
+
+    .password-toggle-btn {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 0.35rem;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s ease;
+    }
+
+    .password-toggle-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .password-input-wrapper input {
+      padding-right: 2.75rem;
     }
 
     .form-options {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 1.5rem;
+      margin-bottom: 1.25rem;
       font-size: 0.85rem;
     }
 
@@ -110,6 +303,8 @@
       gap: 0.5rem;
       cursor: pointer;
       color: var(--text-secondary);
+      margin: 0;
+      font-size: 0.82rem;
     }
 
     .remember-group input {
@@ -119,8 +314,54 @@
 
     .btn-fill {
       width: 100%;
-      padding: 0.8rem;
+      padding: 0.82rem;
       font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    /* Demo autofill bar */
+    .demo-credentials-card {
+      margin-top: 1rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px dashed var(--border-subtle);
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .demo-fill-btn {
+      background: rgba(241, 173, 26, 0.15);
+      border: 1px solid rgba(241, 173, 26, 0.35);
+      color: var(--wcc-gold);
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.25rem 0.55rem;
+      border-radius: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+
+    .demo-fill-btn:hover {
+      background: var(--wcc-gold);
+      color: #0F1218;
+    }
+
+    .portal-switch-footer {
+      text-align: center;
+      margin-top: 1.25rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--border-subtle);
     }
   </style>
 </head>
@@ -136,6 +377,35 @@
         <p class="login-subtitle">Membership Management System Portal</p>
       </div>
 
+      <!-- Role Selection Tabs -->
+      <div class="role-tabs-container" role="tablist" aria-label="Portal Role Selection">
+        <button type="button" class="role-tab active" id="tabAdmin" role="tab" aria-selected="true" data-role="admin">
+          <span class="role-tab-icon">🛡️</span>
+          <span class="role-tab-label">
+            <span class="role-title">Admin Portal</span>
+            <span class="role-desc">Staff & Executive</span>
+          </span>
+        </button>
+        <button type="button" class="role-tab" id="tabMember" role="tab" aria-selected="false" data-role="member">
+          <span class="role-tab-icon">👤</span>
+          <span class="role-tab-label">
+            <span class="role-title">Member Portal</span>
+            <span class="role-desc">General Members</span>
+          </span>
+        </button>
+      </div>
+
+      <!-- Portal Context Banner -->
+      <div class="portal-badge-banner" id="portalBadgeBanner">
+        <div class="portal-badge-header">
+          <span class="portal-badge-pill" id="portalBadgePill">🛡️ Administrator Access</span>
+        </div>
+        <p class="portal-badge-desc" id="portalBadgeDesc">
+          Secure executive access for directory management, card issuance, analytics & system settings.
+        </p>
+      </div>
+
+      <!-- Alert Box -->
       <div id="loginAlert" class="login-alert alert-error" role="alert">
         <div class="alert-icon" id="loginAlertIcon">⛔</div>
         <div class="alert-content">
@@ -144,14 +414,15 @@
         </div>
       </div>
 
+      <!-- Form -->
       <form id="loginForm" autocomplete="on">
         <div class="form-group">
-          <label for="usernameInput" class="form-label">Email, Phone, or Member ID</label>
+          <label for="usernameInput" class="form-label" id="usernameLabel">Admin Email or Username</label>
           <input 
             type="text" 
             id="usernameInput" 
             class="form-control" 
-            placeholder="e.g. email@wecanchange.org, 017xxxxxxxx, or WCC-2026-0001" 
+            placeholder="admin@wecanchange.org or admin" 
             required 
             autocomplete="username"
           />
@@ -159,36 +430,54 @@
 
         <div class="form-group">
           <label for="passwordInput" class="form-label">Password</label>
-          <input 
-            type="password" 
-            id="passwordInput" 
-            class="form-control" 
-            placeholder="••••••••" 
-            required 
-            autocomplete="current-password"
-          />
+          <div class="password-input-wrapper">
+            <input 
+              type="password" 
+              id="passwordInput" 
+              class="form-control" 
+              placeholder="••••••••" 
+              required 
+              autocomplete="current-password"
+            />
+            <button type="button" class="password-toggle-btn" id="passwordToggleBtn" title="Show/Hide Password" aria-label="Toggle password visibility">👁️</button>
+          </div>
         </div>
 
-        <div class="form-options" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
-          <label class="remember-group" style="margin:0;">
+        <div class="form-options">
+          <label class="remember-group">
             <input type="checkbox" id="rememberMeCheckbox" checked />
             <span>Remember me</span>
           </label>
-          <a href="forgot-password.html" class="forgot-pwd-link" style="font-size:0.82rem; color:var(--wcc-gold); text-decoration:none; font-weight:600;">
+          <a href="forgot-password.html" id="forgotPasswordLink" class="forgot-pwd-link" style="font-size:0.82rem; color:var(--wcc-gold); text-decoration:none; font-weight:600;">
             🔑 Forgot Password?
           </a>
         </div>
 
         <button type="submit" id="loginSubmitBtn" class="btn btn-primary btn-fill">
-          Sign In to Portal
+          <span id="submitBtnText">Sign In to Admin Portal 🛡️</span>
         </button>
 
-        <div style="text-align:center; margin-top:1.25rem; padding-top:1.25rem; border-top:1px solid var(--border-subtle);">
-          <span style="font-size:0.85rem; color:var(--text-muted);">Not registered yet as a member?</span>
-          <div style="margin-top:0.5rem;">
-            <a href="signup.html" class="btn btn-secondary btn-sm" style="display:inline-block; font-weight:600; color:var(--wcc-gold);">
-              📝 New Member Registration (Sign Up)
-            </a>
+        <!-- Demo Account Auto-Fill Helper -->
+        <div class="demo-credentials-card" id="demoCredentialsCard">
+          <span id="demoText">Demo Admin: <strong>admin@wecanchange.org</strong> / <strong>wccadmin2026</strong></span>
+          <button type="button" class="demo-fill-btn" id="demoFillBtn">Auto Fill</button>
+        </div>
+
+        <!-- Registration & Switch Footer -->
+        <div class="portal-switch-footer" id="portalSwitchFooter">
+          <div id="memberSignupArea" style="display:none;">
+            <span style="font-size:0.85rem; color:var(--text-muted);">Not registered yet as a member?</span>
+            <div style="margin-top:0.5rem;">
+              <a href="signup.html" class="btn btn-secondary btn-sm" style="display:inline-block; font-weight:600; color:var(--wcc-gold);">
+                📝 New Member Registration (Sign Up)
+              </a>
+            </div>
+          </div>
+          <div id="adminSwitchNotice">
+            <span style="font-size:0.82rem; color:var(--text-muted);">General WCC Member?</span>
+            <button type="button" id="switchToMemberBtn" style="background:none; border:none; color:var(--wcc-gold); font-size:0.82rem; font-weight:700; cursor:pointer; text-decoration:underline; margin-left:0.25rem;">
+              Switch to Member Login &rarr;
+            </button>
           </div>
         </div>
       </form>
@@ -202,18 +491,44 @@
   <script src="js/auth.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      // Redirect to dashboard/portal if session already active
       AUTH.redirectIfAuthenticated();
       AUTH.initTheme();
 
       const form = document.getElementById('loginForm');
       const submitBtn = document.getElementById('loginSubmitBtn');
+      const submitBtnText = document.getElementById('submitBtnText');
       const alertBox = document.getElementById('loginAlert');
       const alertTitle = document.getElementById('loginAlertTitle');
       const alertMsg = document.getElementById('loginAlertMsg');
       const alertIcon = document.getElementById('loginAlertIcon');
       const usernameInput = document.getElementById('usernameInput');
+      const usernameLabel = document.getElementById('usernameLabel');
       const passwordInput = document.getElementById('passwordInput');
+      const passwordToggleBtn = document.getElementById('passwordToggleBtn');
+
+      const tabAdmin = document.getElementById('tabAdmin');
+      const tabMember = document.getElementById('tabMember');
+      const portalBadgeBanner = document.getElementById('portalBadgeBanner');
+      const portalBadgePill = document.getElementById('portalBadgePill');
+      const portalBadgeDesc = document.getElementById('portalBadgeDesc');
+
+      const demoCredentialsCard = document.getElementById('demoCredentialsCard');
+      const demoText = document.getElementById('demoText');
+      const demoFillBtn = document.getElementById('demoFillBtn');
+      const memberSignupArea = document.getElementById('memberSignupArea');
+      const adminSwitchNotice = document.getElementById('adminSwitchNotice');
+      const switchToMemberBtn = document.getElementById('switchToMemberBtn');
+      const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+
+      let currentRole = 'admin'; // 'admin' or 'member'
+
+      // Password visibility toggle
+      let showPassword = false;
+      passwordToggleBtn.addEventListener('click', () => {
+        showPassword = !showPassword;
+        passwordInput.type = showPassword ? 'text' : 'password';
+        passwordToggleBtn.textContent = showPassword ? '🙈' : '👁️';
+      });
 
       function hideAlert() {
         alertBox.classList.remove('show', 'alert-success', 'alert-error');
@@ -242,19 +557,120 @@
         passwordInput.classList.remove('is-invalid');
       });
 
-      // Check if newly registered member arrived via redirect
+      /**
+       * Switch Login View between Admin and Member
+       */
+      function setRole(role, preserveValues = false) {
+        currentRole = role === 'member' ? 'member' : 'admin';
+        hideAlert();
+
+        if (!preserveValues) {
+          usernameInput.value = '';
+          passwordInput.value = '';
+        }
+
+        try {
+          localStorage.setItem('wcc_last_login_role', currentRole);
+        } catch(e) {}
+
+        if (currentRole === 'admin') {
+          tabAdmin.classList.add('active');
+          tabAdmin.setAttribute('aria-selected', 'true');
+          tabMember.classList.remove('active');
+          tabMember.setAttribute('aria-selected', 'false');
+
+          portalBadgeBanner.classList.remove('member-mode');
+          portalBadgePill.innerHTML = '🛡️ Administrator Access';
+          portalBadgeDesc.textContent = 'Secure executive access for directory management, card issuance, analytics & system settings.';
+
+          usernameLabel.textContent = 'Admin Email or Username';
+          usernameInput.placeholder = 'admin@wecanchange.org or admin';
+          submitBtnText.textContent = 'Sign In to Admin Portal 🛡️';
+          forgotPasswordLink.href = 'forgot-password.html';
+
+          demoText.innerHTML = 'Demo Admin: <strong>admin@wecanchange.org</strong> / <strong>wccadmin2026</strong>';
+          memberSignupArea.style.display = 'none';
+          adminSwitchNotice.style.display = 'block';
+        } else {
+          tabMember.classList.add('active');
+          tabMember.setAttribute('aria-selected', 'true');
+          tabAdmin.classList.remove('active');
+          tabAdmin.setAttribute('aria-selected', 'false');
+
+          portalBadgeBanner.classList.add('member-mode');
+          portalBadgePill.innerHTML = '👤 Member Self-Service Portal';
+          portalBadgeDesc.textContent = 'Access your digital ID card, official membership profile, and verify status in the WCC directory.';
+
+          usernameLabel.textContent = 'Member ID, Email, or Mobile';
+          usernameInput.placeholder = 'e.g. WCC-2026-0001, 017xxxxxxxx, or email@...';
+          submitBtnText.textContent = 'Sign In to Member Portal 👤';
+          forgotPasswordLink.href = 'forgot-password.html';
+
+          demoText.innerHTML = 'Demo Member: <strong>member@wecanchange.org</strong> / <strong>member123</strong>';
+          memberSignupArea.style.display = 'block';
+          adminSwitchNotice.style.display = 'none';
+        }
+
+        // Keep clean URL query param
+        const url = new URL(window.location.href);
+        url.searchParams.set('role', currentRole);
+        window.history.replaceState(null, '', url.toString());
+      }
+
+      tabAdmin.addEventListener('click', () => setRole('admin'));
+      tabMember.addEventListener('click', () => setRole('member'));
+      if (switchToMemberBtn) {
+        switchToMemberBtn.addEventListener('click', () => setRole('member'));
+      }
+
+      // Demo autofill click handler
+      demoFillBtn.addEventListener('click', () => {
+        if (currentRole === 'admin') {
+          usernameInput.value = 'admin@wecanchange.org';
+          passwordInput.value = 'wccadmin2026';
+        } else {
+          usernameInput.value = 'member@wecanchange.org';
+          passwordInput.value = 'member123';
+        }
+        hideAlert();
+        if (typeof UTILS !== 'undefined' && UTILS.showToast) {
+          UTILS.showToast(`Autofilled demo ${currentRole} credentials. Click Sign In to test.`, 'info');
+        }
+      });
+
+      // Inspect URL parameters for initial tab & registration redirection
       const urlParams = new URLSearchParams(window.location.search);
+      const roleParam = (urlParams.get('role') || '').toLowerCase();
       const regId = urlParams.get('registered');
+      const redirectParam = (urlParams.get('redirect') || '').toLowerCase();
+
+      // Determine initial role
+      let initialRole = 'admin';
+      if (roleParam === 'member' || regId || redirectParam.includes('profile')) {
+        initialRole = 'member';
+      } else if (roleParam === 'admin' || redirectParam.includes('dashboard') || redirectParam.includes('members') || redirectParam.includes('settings') || redirectParam.includes('analytics')) {
+        initialRole = 'admin';
+      } else {
+        try {
+          const savedRole = localStorage.getItem('wcc_last_login_role');
+          if (savedRole === 'member') initialRole = 'member';
+        } catch(e) {}
+      }
+
+      setRole(initialRole, !!regId);
+
+      // Handle newly activated member notification
       if (regId) {
         usernameInput.value = regId;
-        passwordInput.value = ''; // Ensure password field is clean for member's new password
+        passwordInput.value = '';
         alertBox.classList.add('show', 'alert-success');
         alertIcon.textContent = '🎉';
         alertTitle.textContent = 'Account Activated Successfully!';
-        alertMsg.textContent = `Your Member ID is ${regId}. Please enter your newly created password to sign in.`;
+        alertMsg.textContent = `Your Member ID is ${regId}. Please enter your newly created password to sign in to the Member Portal.`;
         passwordInput.focus();
       }
 
+      // Form submission
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const username = usernameInput.value.trim();
@@ -263,27 +679,34 @@
 
         hideAlert();
         submitBtn.classList.add('loading');
-        submitBtn.innerHTML = `<span class="spinner"></span> Authenticating...`;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<span class="spinner"></span> Authenticating as ${currentRole === 'admin' ? 'Admin' : 'Member'}...`;
 
-        const res = await AUTH.login(username, password, rememberMe);
+        const res = await AUTH.login(username, password, rememberMe, currentRole);
 
         if (res.success) {
-          UTILS.showToast(`Welcome back, ${res.user.name}!`, 'success');
+          const roleDisplayName = res.user.role || (res.user.isMember ? 'Member' : 'Administrator');
+          UTILS.showToast(`Welcome, ${res.user.name || 'User'}! Signed in as ${roleDisplayName}.`, 'success');
+
           const params = new URLSearchParams(window.location.search);
           let targetUrl = params.get('redirect');
 
-          // If no explicit redirect param, route based on role
-          if (!targetUrl) {
-            targetUrl = (res.user.isMember || res.user.role === CONFIG.ROLES.MEMBER) ? 'my-profile.html' : 'dashboard.html';
+          if (currentRole === 'member' || res.user.isMember || res.user.role === CONFIG.ROLES.MEMBER) {
+            targetUrl = 'my-profile.html';
+          } else {
+            if (!targetUrl || targetUrl.includes('my-profile.html')) {
+              targetUrl = 'dashboard.html';
+            }
           }
 
           setTimeout(() => {
             window.location.href = targetUrl;
-          }, 400);
+          }, 350);
         } else {
           submitBtn.classList.remove('loading');
-          submitBtn.textContent = 'Sign In to Portal';
-          showLoginError('Invalid Credentials', res.message || 'The email, Member ID, or password you entered is incorrect.');
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = `<span id="submitBtnText">${currentRole === 'admin' ? 'Sign In to Admin Portal 🛡️' : 'Sign In to Member Portal 👤'}</span>`;
+          showLoginError('Authentication Failed', res.message || 'The credentials you entered are incorrect for this portal.');
         }
       });
     });

@@ -417,7 +417,7 @@
           successModal.classList.add('active');
 
           goToLoginBtn.onclick = () => {
-            window.location.href = `index.html?registered=${encodeURIComponent(res.memberId)}`;
+            window.location.href = `index.html?role=member&registered=${encodeURIComponent(res.memberId)}`;
           };
         } else {
           // Identifier mismatch or other registration failure

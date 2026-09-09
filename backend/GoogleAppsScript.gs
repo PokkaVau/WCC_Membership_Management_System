@@ -299,11 +299,12 @@ function doPost(e) {
    ============================================================================== */
 
 /**
- * Authenticate Admin, Staff, or Member
+ * Authenticate Admin, Staff, or Member with Role-Based Segregation
  */
 function handleLogin(memSS, adminSS, payload) {
   var username = String(payload.username || "").trim().toLowerCase();
   var password = String(payload.password || "");
+  var expectedRole = String(payload.expectedRole || payload.role || "").trim().toLowerCase();
 
   if (!username || !password) {
     return createJsonResponse({ status: "error", message: "Email/Username and Password are required." });
@@ -318,61 +319,111 @@ function handleLogin(memSS, adminSS, payload) {
     });
   }
 
-  // 1. Check Admins Tab (Staff Login)
   var adminsSheet = getOrInitSheet(adminSS, ADMINS_TAB_NAME);
   var adminData = adminsSheet.getDataRange().getValues();
+  var adminMatch = null;
+  var isAdminAccount = false;
+
   if (adminData.length > 1) {
-    var headers = adminData[0];
-    var emailIdx = getColIndex(headers, ["email", "username"]);
-    var hashIdx = getColIndex(headers, ["passwordhash", "hash", "password"]);
-    var saltIdx = getColIndex(headers, ["salt"]);
-    var roleIdx = getColIndex(headers, ["role"]);
-    var nameIdx = getColIndex(headers, ["name", "fullname"]);
-    var statusIdx = getColIndex(headers, ["status"]);
+    var aHeaders = adminData[0];
+    var emailIdx = getColIndex(aHeaders, ["email", "username"]);
+    var hashIdx = getColIndex(aHeaders, ["passwordhash", "hash", "password"]);
+    var saltIdx = getColIndex(aHeaders, ["salt"]);
+    var roleIdx = getColIndex(aHeaders, ["role"]);
+    var nameIdx = getColIndex(aHeaders, ["name", "fullname"]);
+    var statusIdx = getColIndex(aHeaders, ["status"]);
+    var lastLoginIdx = getColIndex(aHeaders, ["lastlogin", "last login"]);
 
     for (var i = 1; i < adminData.length; i++) {
-      var row = adminData[i];
-      var rowEmail = String(row[emailIdx] || "").trim().toLowerCase();
+      var aRow = adminData[i];
+      var rowEmail = String(aRow[emailIdx] || "").trim().toLowerCase();
       var isSuperAdminAlias = (username === "admin" || username === "wccadmin" || username === "superadmin") && (rowEmail === "admin@wecanchange.org" || rowEmail === "admin");
+      
       if (rowEmail === username || isSuperAdminAlias) {
-        var rowStatus = String(row[statusIdx] || "Active").trim();
+        isAdminAccount = true;
+        var rowStatus = String(aRow[statusIdx] || "Active").trim();
         if (rowStatus.toLowerCase() === "inactive") {
           return createJsonResponse({ status: "error", message: "This administrative account has been deactivated." });
         }
 
-        var salt = String(row[saltIdx] || "");
-        var expectedHash = String(row[hashIdx] || "");
-        var calculatedHash = hashPassword(password, salt);
-        // Cryptographic hash validation ONLY - zero hardcoded backdoors
-        var isPassMatch = (calculatedHash === expectedHash);
+        var aSalt = String(aRow[saltIdx] || "");
+        var aExpectedHash = String(aRow[hashIdx] || "");
+        var aCalculatedHash = hashPassword(password, aSalt);
+        var isPassMatch = (aCalculatedHash === aExpectedHash);
 
         if (isPassMatch) {
-          resetRateLimit(rateLimitKey);
-          var adminRole = String(row[roleIdx] || "Admin").trim();
-          var adminName = String(row[nameIdx] || "Administrator").trim();
-          
-          // Update LastLogin timestamp
-          var lastLoginIdx = getColIndex(headers, ["lastlogin", "last login"]);
-          if (lastLoginIdx !== -1) {
-            adminsSheet.getRange(i + 1, lastLoginIdx + 1).setValue(new Date());
-          }
-
-          var token = generateSessionToken(username, adminRole);
-          writeAuditLog(adminSS, username, adminRole, "ADMIN_LOGIN", username, "Admin signed in successfully from portal.");
-
-          return createJsonResponse({
-            status: "success",
-            token: token,
-            user: {
-              email: username,
-              name: adminName,
-              role: adminRole,
-              isMember: false
-            }
-          });
+          adminMatch = {
+            rowIndex: i + 1,
+            email: rowEmail,
+            role: String(aRow[roleIdx] || "Admin").trim(),
+            name: String(aRow[nameIdx] || "Administrator").trim(),
+            lastLoginCol: lastLoginIdx !== -1 ? lastLoginIdx + 1 : null
+          };
+          break;
         }
       }
     }
+  }
+
+  // If client requested Member login specifically, but an Admin account matched
+  if (expectedRole === "member" && adminMatch) {
+    return createJsonResponse({
+      status: "error",
+      message: "This account has Administrator privileges. Please switch to the 'Admin Login' tab to sign in."
+    });
+  }
+
+  // 1. Successful Admin Login
+  if (adminMatch && (expectedRole === "admin" || !expectedRole)) {
+    resetRateLimit(rateLimitKey);
+    if (adminMatch.lastLoginCol) {
+      adminsSheet.getRange(adminMatch.rowIndex, adminMatch.lastLoginCol).setValue(new Date());
+    }
+
+    var adminToken = generateSessionToken(username, adminMatch.role);
+    writeAuditLog(adminSS, username, adminMatch.role, "ADMIN_LOGIN", username, "Admin signed in successfully from portal.");
+
+    return createJsonResponse({
+      status: "success",
+      token: adminToken,
+      user: {
+        email: username,
+        name: adminMatch.name,
+        role: adminMatch.role,
+        isMember: false
+      }
+    });
+  }
+
+  // If client requested Admin login, do not authenticate as Member
+  if (expectedRole === "admin") {
+    // Check if user is a member to give helpful error
+    var memSheetForCheck = getMembersSheet(memSS);
+    var isMemberAccount = false;
+    if (memSheetForCheck) {
+      var chkData = memSheetForCheck.getDataRange().getValues();
+      var chkHeaders = chkData[0] || [];
+      var chkEmailIdx = getColIndex(chkHeaders, ["email"]);
+      var chkIdIdx = getColIndex(chkHeaders, ["member id", "memberid"]);
+      for (var c = 1; c < chkData.length; c++) {
+        var mE = String(chkData[c][chkEmailIdx] || "").trim().toLowerCase();
+        var mI = chkIdIdx !== -1 ? String(chkData[c][chkIdIdx] || "").trim().toLowerCase() : "";
+        if (mE === username || mI === username) {
+          isMemberAccount = true;
+          break;
+        }
+      }
+    }
+    if (isMemberAccount) {
+      return createJsonResponse({
+        status: "error",
+        message: "This account belongs to a WCC Member. Please switch to the 'Member Login' tab to sign in."
+      });
+    }
+    return createJsonResponse({
+      status: "error",
+      message: "Invalid administrator email or password. Please check your credentials."
+    });
   }
 
   // 2. Check Member_Auth Tab (Member Login)
@@ -446,10 +497,10 @@ function handleLogin(memSS, adminSS, payload) {
     var memberName = "WCC Member";
     var memberPhone = "";
 
-    for (var m = 1; m < memData.length; m++) {
-      if (String(memData[m][mEmailIdx] || "").trim().toLowerCase() === memberAuthMatch.email) {
-        memberName = String(memData[m][mNameIdx] || memberName).trim();
-        memberPhone = String(memData[m][mPhoneIdx] || "").trim();
+    for (var m2 = 1; m2 < memData.length; m2++) {
+      if (String(memData[m2][mEmailIdx] || "").trim().toLowerCase() === memberAuthMatch.email) {
+        memberName = String(memData[m2][mNameIdx] || memberName).trim();
+        memberPhone = String(memData[m2][mPhoneIdx] || "").trim();
         break;
       }
     }
@@ -473,7 +524,17 @@ function handleLogin(memSS, adminSS, payload) {
     });
   }
 
-  return createJsonResponse({ status: "error", message: "Invalid email, Member ID, or password. Please try again." });
+  if (isAdminAccount) {
+    return createJsonResponse({
+      status: "error",
+      message: "This account has Administrator privileges. Please switch to the 'Admin Login' tab to sign in."
+    });
+  }
+
+  return createJsonResponse({
+    status: "error",
+    message: "Invalid Member ID, email, phone, or password. Please verify your credentials."
+  });
 }
 
 /**

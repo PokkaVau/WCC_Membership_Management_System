@@ -324,39 +324,6 @@
       gap: 0.5rem;
     }
 
-    /* Demo autofill bar */
-    .demo-credentials-card {
-      margin-top: 1rem;
-      padding: 0.65rem 0.85rem;
-      border-radius: var(--radius-md);
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px dashed var(--border-subtle);
-      font-size: 0.76rem;
-      color: var(--text-muted);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.5rem;
-    }
-
-    .demo-fill-btn {
-      background: rgba(241, 173, 26, 0.15);
-      border: 1px solid rgba(241, 173, 26, 0.35);
-      color: var(--wcc-gold);
-      font-size: 0.72rem;
-      font-weight: 700;
-      padding: 0.25rem 0.55rem;
-      border-radius: 4px;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: all 0.2s ease;
-    }
-
-    .demo-fill-btn:hover {
-      background: var(--wcc-gold);
-      color: #0F1218;
-    }
-
     .portal-switch-footer {
       text-align: center;
       margin-top: 1.25rem;
@@ -457,12 +424,6 @@
           <span id="submitBtnText">Sign In to Admin Portal 🛡️</span>
         </button>
 
-        <!-- Demo Account Auto-Fill Helper -->
-        <div class="demo-credentials-card" id="demoCredentialsCard">
-          <span id="demoText">Demo Admin: <strong>admin@wecanchange.org</strong> / <strong>wccadmin2026</strong></span>
-          <button type="button" class="demo-fill-btn" id="demoFillBtn">Auto Fill</button>
-        </div>
-
         <!-- Registration & Switch Footer -->
         <div class="portal-switch-footer" id="portalSwitchFooter">
           <div id="memberSignupArea" style="display:none;">
@@ -512,9 +473,6 @@
       const portalBadgePill = document.getElementById('portalBadgePill');
       const portalBadgeDesc = document.getElementById('portalBadgeDesc');
 
-      const demoCredentialsCard = document.getElementById('demoCredentialsCard');
-      const demoText = document.getElementById('demoText');
-      const demoFillBtn = document.getElementById('demoFillBtn');
       const memberSignupArea = document.getElementById('memberSignupArea');
       const adminSwitchNotice = document.getElementById('adminSwitchNotice');
       const switchToMemberBtn = document.getElementById('switchToMemberBtn');
@@ -588,7 +546,6 @@
           submitBtnText.textContent = 'Sign In to Admin Portal 🛡️';
           forgotPasswordLink.href = 'forgot-password.html';
 
-          demoText.innerHTML = 'Demo Admin: <strong>admin@wecanchange.org</strong> / <strong>wccadmin2026</strong>';
           memberSignupArea.style.display = 'none';
           adminSwitchNotice.style.display = 'block';
         } else {
@@ -606,7 +563,6 @@
           submitBtnText.textContent = 'Sign In to Member Portal 👤';
           forgotPasswordLink.href = 'forgot-password.html';
 
-          demoText.innerHTML = 'Demo Member: <strong>member@wecanchange.org</strong> / <strong>member123</strong>';
           memberSignupArea.style.display = 'block';
           adminSwitchNotice.style.display = 'none';
         }
@@ -622,21 +578,6 @@
       if (switchToMemberBtn) {
         switchToMemberBtn.addEventListener('click', () => setRole('member'));
       }
-
-      // Demo autofill click handler
-      demoFillBtn.addEventListener('click', () => {
-        if (currentRole === 'admin') {
-          usernameInput.value = 'admin@wecanchange.org';
-          passwordInput.value = 'wccadmin2026';
-        } else {
-          usernameInput.value = 'member@wecanchange.org';
-          passwordInput.value = 'member123';
-        }
-        hideAlert();
-        if (typeof UTILS !== 'undefined' && UTILS.showToast) {
-          UTILS.showToast(`Autofilled demo ${currentRole} credentials. Click Sign In to test.`, 'info');
-        }
-      });
 
       // Inspect URL parameters for initial tab & registration redirection
       const urlParams = new URLSearchParams(window.location.search);

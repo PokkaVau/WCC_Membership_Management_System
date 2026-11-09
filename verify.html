@@ -165,7 +165,7 @@
           statusBanner.style.background = 'rgba(182, 42, 53, 0.2)';
           statusBanner.style.color = '#FF6B6B';
           statusBanner.style.border = '1px solid rgba(182, 42, 53, 0.5)';
-          statusBanner.innerHTML = `🔴 ${member.status.toUpperCase()}`;
+          statusBanner.innerHTML = `🔴 ${(member.status || 'INACTIVE').toUpperCase()}`;
         }
 
         successEl.style.display = 'block';

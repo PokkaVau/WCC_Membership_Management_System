@@ -936,20 +936,19 @@ function handleMemberSelfUpdate(memSS, adminSS, payload) {
   var memberId = String(payload.memberId || "").trim();
   var email = String(payload.email || "").trim().toLowerCase();
   var token = payload.token || "";
+  var tokenPayload = null;
 
   // Authorization Check: Must be authenticated as the member themselves or an administrator
   if (token) {
-    var tokenPayload = verifySessionToken(token);
+    tokenPayload = verifySessionToken(token);
     if (!tokenPayload) {
       return createJsonResponse({ status: "error", code: "UNAUTHORIZED", message: "Session expired or invalid. Please sign in again." });
     }
-    var callerRole = String(tokenPayload.role || "").toLowerCase();
-    var callerSub = String(tokenPayload.sub || "").toLowerCase();
-    var isStaff = (callerRole === "super admin" || callerRole === "admin" || callerRole === "moderator");
-    var isSelf = (callerSub === memberId.toLowerCase() || (email && callerSub === email));
-    if (!isStaff && !isSelf) {
-      return createJsonResponse({ status: "error", code: "FORBIDDEN", message: "Access denied. You cannot modify another member's profile." });
-    }
+  }
+
+  if (!memberId && !email && tokenPayload && tokenPayload.sub) {
+    if (tokenPayload.sub.indexOf("@") !== -1) email = tokenPayload.sub.toLowerCase();
+    else memberId = tokenPayload.sub;
   }
 
   if (!memberId && !email) {
@@ -967,6 +966,8 @@ function handleMemberSelfUpdate(memSS, adminSS, payload) {
   var cleanMemId = memberId.toLowerCase();
 
   var targetRow = -1;
+  var matchedRowEmail = "";
+  var matchedRowId = "";
   for (var r = 1; r < data.length; r++) {
     var rowId = (idCol !== -1) ? String(data[r][idCol] || "").trim().toLowerCase() : "";
     var rowEmail = (emailCol !== -1) ? String(data[r][emailCol] || "").trim().toLowerCase() : "";
@@ -988,12 +989,30 @@ function handleMemberSelfUpdate(memSS, adminSS, payload) {
 
     if (idMatch || emailMatch || phoneMatch) {
       targetRow = r + 1;
+      matchedRowEmail = rowEmail;
+      matchedRowId = rowId || autoId2026;
       break;
     }
   }
 
   if (targetRow === -1) {
     return createJsonResponse({ status: "error", message: "Member record not found in WCC Members sheet." });
+  }
+
+  // Verify caller identity against target record
+  if (tokenPayload) {
+    var callerRole = String(tokenPayload.role || "").toLowerCase();
+    var callerSub = String(tokenPayload.sub || "").toLowerCase();
+    var isStaff = (callerRole === "super admin" || callerRole === "admin" || callerRole === "moderator");
+    var isSelf = (
+      callerSub === cleanMemId || 
+      (email && callerSub === email) || 
+      (matchedRowEmail && callerSub === matchedRowEmail) || 
+      (matchedRowId && callerSub === matchedRowId.toLowerCase())
+    );
+    if (!isStaff && !isSelf) {
+      return createJsonResponse({ status: "error", code: "FORBIDDEN", message: "Access denied. You cannot modify another member's profile." });
+    }
   }
 
   var changes = [];
@@ -1224,20 +1243,19 @@ function handlePhotoUpload(memSS, adminSS, payload) {
   var memberId = String(payload.memberId || "").trim();
   var email = String(payload.email || "").trim().toLowerCase();
   var token = payload.token || "";
+  var tokenPayload = null;
 
   // Authorization Check: Must be authenticated as the member themselves or an administrator
   if (token) {
-    var tokenPayload = verifySessionToken(token);
+    tokenPayload = verifySessionToken(token);
     if (!tokenPayload) {
       return createJsonResponse({ status: "error", code: "UNAUTHORIZED", message: "Session expired or invalid. Please sign in again." });
     }
-    var callerRole = String(tokenPayload.role || "").toLowerCase();
-    var callerSub = String(tokenPayload.sub || "").toLowerCase();
-    var isStaff = (callerRole === "super admin" || callerRole === "admin" || callerRole === "moderator");
-    var isSelf = (callerSub === memberId.toLowerCase() || (email && callerSub === email));
-    if (!isStaff && !isSelf) {
-      return createJsonResponse({ status: "error", code: "FORBIDDEN", message: "Access denied. You cannot upload photos for another member." });
-    }
+  }
+
+  if (!memberId && !email && tokenPayload && tokenPayload.sub) {
+    if (tokenPayload.sub.indexOf("@") !== -1) email = tokenPayload.sub.toLowerCase();
+    else memberId = tokenPayload.sub;
   }
 
   var photoData = payload.photoBase64 || payload.photoData || payload.image_base64 || payload.photo || payload.photoUrl;
@@ -1261,6 +1279,8 @@ function handlePhotoUpload(memSS, adminSS, payload) {
   var cleanMemId = memberId.toLowerCase();
 
   var targetRow = -1;
+  var matchedRowEmail = "";
+  var matchedRowId = "";
   for (var r = 1; r < data.length; r++) {
     var rowId = (idCol !== -1) ? String(data[r][idCol] || "").trim().toLowerCase() : "";
     var rowEmail = (emailCol !== -1) ? String(data[r][emailCol] || "").trim().toLowerCase() : "";
@@ -1280,12 +1300,29 @@ function handlePhotoUpload(memSS, adminSS, payload) {
 
     if (idMatch || emailMatch || phoneMatch) {
       targetRow = r + 1;
+      matchedRowEmail = rowEmail;
+      matchedRowId = rowId || autoId2026;
       break;
     }
   }
 
   if (targetRow === -1) {
     return createJsonResponse({ status: "error", message: "Member record not found for photo upload." });
+  }
+
+  if (tokenPayload) {
+    var callerRole = String(tokenPayload.role || "").toLowerCase();
+    var callerSub = String(tokenPayload.sub || "").toLowerCase();
+    var isStaff = (callerRole === "super admin" || callerRole === "admin" || callerRole === "moderator");
+    var isSelf = (
+      callerSub === cleanMemId || 
+      (email && callerSub === email) || 
+      (matchedRowEmail && callerSub === matchedRowEmail) || 
+      (matchedRowId && callerSub === matchedRowId.toLowerCase())
+    );
+    if (!isStaff && !isSelf) {
+      return createJsonResponse({ status: "error", code: "FORBIDDEN", message: "Access denied. You cannot upload photos for another member." });
+    }
   }
 
   try {
@@ -1561,7 +1598,7 @@ function handleResetPassword(memSS, adminSS, payload) {
 
   // Rate Limiting: max 5 OTP/token attempts per 15 mins per memberId
   var resetVerifyLimitKey = "rl_reset_verify_" + memberId.replace(/[^a-zA-Z0-9]/g, "_");
-  if (!checkRateLimit(resetVerifyLimitKey, 5, 900)) {
+  if (isRateLimited(resetVerifyLimitKey, 5)) {
     return createJsonResponse({
       status: "error",
       message: "Too many invalid verification attempts. Verification session locked for 15 minutes."
@@ -1595,6 +1632,7 @@ function handleResetPassword(memSS, adminSS, payload) {
   }
 
   if (!isValid) {
+    recordFailedAttempt(resetVerifyLimitKey, 900);
     return createJsonResponse({
       status: "error",
       message: "Verification code is invalid or has expired. Please request a new code."
@@ -2429,6 +2467,10 @@ function ensureSystemTabs(memSS, adminSS) {
 }
 
 function getOrInitSheet(ss, tabName) {
+  if (!ss) {
+    ss = getAdminSpreadsheet() || getMembersSpreadsheet();
+  }
+  if (!ss) return null;
   var sheet = ss.getSheetByName(tabName);
   if (!sheet) {
     sheet = ss.insertSheet(tabName);

@@ -761,6 +761,15 @@
           member = all.find(m => m.email && m.email.toLowerCase() === currentUser.email.toLowerCase());
         }
 
+        // Fallback: search by phone
+        if (!member && currentUser.phone) {
+          const all = await API.fetchMembers();
+          const cleanP = currentUser.phone.replace(/[^0-9]/g, '').slice(-10);
+          if (cleanP.length >= 8) {
+            member = all.find(m => m.phone && m.phone.replace(/[^0-9]/g, '').slice(-10) === cleanP);
+          }
+        }
+
         if (!member) {
           // If admin is previewing or member not found in list, build safe placeholder
           member = {

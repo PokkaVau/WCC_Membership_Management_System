@@ -545,6 +545,7 @@ const API = {
               action: 'uploadProfilePhoto',
               memberId: memberId,
               email: email,
+              token: (typeof AUTH !== 'undefined' && AUTH.getSessionToken) ? AUTH.getSessionToken() : '',
               photoBase64: base64Data,
               mimeType: mimeType,
               photoName: fileName

@@ -807,7 +807,14 @@ const API = {
           this.clearCache();
           return { success: true, deletedCount: res.deletedCount || cleanIds.length, message: res.message };
         } else {
-          return { success: false, message: res.message || 'Deletion failed on server.' };
+          const serverMsg = (res && res.message) ? res.message : '';
+          if (serverMsg.includes('Unsupported action')) {
+            return {
+              success: false,
+              message: 'Google Apps Script-এ "New version" ডিপ্লয় করা নেই। Apps Script-এ Deploy > Manage deployments > Edit > New version নির্বাচন করে Deploy করুন।'
+            };
+          }
+          return { success: false, message: serverMsg || 'Deletion failed on server.' };
         }
       } catch (err) {
         console.error('Remote deleteMembers error:', err);

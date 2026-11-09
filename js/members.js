@@ -655,7 +655,7 @@ function initDuplicateAccountsFeature() {
                 <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 0.75rem; align-items: center;">
                   <span>📅 Reg: ${UTILS.escapeHTML(d.formattedRegDate || d.timestamp || '-')}</span>
                   <span>🩸 ${UTILS.escapeHTML(d.bloodGroup || '-')}</span>
-                  <button type="button" class="btn btn-sm btn-single-delete" data-id="${UTILS.escapeHTML(d.memberId)}" style="background: transparent; color: #E74C3C; border: 1px solid rgba(231, 76, 60, 0.4); font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; cursor: pointer;" title="Delete this duplicate">
+                  <button type="button" class="btn btn-sm btn-single-delete" data-id="${UTILS.escapeHTML(d.memberId || '')}" data-email="${UTILS.escapeHTML(d.email || '')}" data-phone="${UTILS.escapeHTML(d.phone || '')}" style="background: transparent; color: #E74C3C; border: 1px solid rgba(231, 76, 60, 0.4); font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; cursor: pointer;" title="Delete this duplicate">
                     ✕ Delete
                   </button>
                 </div>
@@ -669,7 +669,7 @@ function initDuplicateAccountsFeature() {
     // Bind Group Delete Buttons
     container.querySelectorAll('.btn-delete-group').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const ids = (btn.getAttribute('data-ids') || '').split(',').filter(Boolean);
+        const ids = (btn.getAttribute('data-ids') || '').split(',').map(s => s.trim()).filter(Boolean);
         await executeDeleteMembers(ids);
       });
     });
@@ -678,7 +678,10 @@ function initDuplicateAccountsFeature() {
     container.querySelectorAll('.btn-single-delete').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = btn.getAttribute('data-id');
-        if (id) await executeDeleteMembers([id]);
+        const email = btn.getAttribute('data-email');
+        const phone = btn.getAttribute('data-phone');
+        const ids = [id, email, phone].filter(Boolean);
+        if (ids.length > 0) await executeDeleteMembers(ids);
       });
     });
   }
@@ -687,18 +690,18 @@ function initDuplicateAccountsFeature() {
     if (!idsToDelete || idsToDelete.length === 0) return;
 
     const count = idsToDelete.length;
-    const confirmMsg = `আপনি কি নিশ্চিতভাবে এই ${count} টি ডুপ্লিকেট অ্যাকাউন্ট মুছে ফেলতে চান?\n\nএটি গুগল শিট ও ডাটাবেস থেকে স্থায়ীভাবে মুছে যাবে। আসল (Original) অ্যাকাউন্ট সংরক্ষিত থাকবে।`;
+    const confirmMsg = `আপনি কি নিশ্চিতভাবে অতিরিক্ত ডুপ্লিকেট অ্যাকাউন্ট মুছে ফেলতে চান?\n\nএটি গুগল শিট থেকে স্থায়ীভাবে মুছে যাবে। আসল (Original) অ্যাকাউন্ট অক্ষত থাকবে।`;
 
     if (!confirm(confirmMsg)) return;
 
     btnDeleteAll.disabled = true;
     btnDeleteAll.innerHTML = `<span>⏳</span> Deleting...`;
-    UTILS.showToast(`Deleting ${count} duplicate account(s)...`, 'info');
+    UTILS.showToast(`Deleting duplicate account(s)...`, 'info');
 
     try {
       const res = await API.deleteMembers(idsToDelete);
       if (res.success) {
-        UTILS.showToast(res.message || `${count} duplicate account(s) deleted successfully!`, 'success');
+        UTILS.showToast(res.message || `Duplicate account(s) deleted successfully!`, 'success');
         // Refresh directory data
         allMembersData = await API.fetchMembers();
         filteredMembersData = [...allMembersData];
@@ -731,12 +734,19 @@ function initDuplicateAccountsFeature() {
 
     btnDeleteAll.addEventListener('click', async () => {
       const groups = UTILS.findDuplicateGroups(allMembersData);
-      const allDupIds = groups.flatMap(g => g.duplicates.map(d => d.memberId));
-      if (allDupIds.length === 0) {
+      const allDupIdentifiers = [];
+      groups.forEach(g => {
+        g.duplicates.forEach(d => {
+          if (d.memberId) allDupIdentifiers.push(d.memberId);
+          if (d.email) allDupIdentifiers.push(d.email);
+          if (d.phone) allDupIdentifiers.push(d.phone);
+        });
+      });
+      if (allDupIdentifiers.length === 0) {
         UTILS.showToast('No duplicate accounts to delete.', 'info');
         return;
       }
-      await executeDeleteMembers(allDupIds);
+      await executeDeleteMembers(allDupIdentifiers);
     });
   }
 

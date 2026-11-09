@@ -757,14 +757,20 @@ const API = {
     // If live API, send update
     if (!CONFIG.USE_MOCK_DATA) {
       try {
+        const token = (typeof AUTH !== 'undefined' && AUTH.getSessionToken) ? AUTH.getSessionToken() : '';
+        const actorRole = currentUser ? (currentUser.role || 'Super Admin') : 'Super Admin';
+        const isAdmin = (typeof AUTH !== 'undefined' && AUTH.isAdmin) ? AUTH.isAdmin() : true;
         await fetch(CONFIG.API_URL, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({
             action: 'updateStatus',
             memberId: memberId,
             status: newStatus,
-            actorEmail: actorEmail
+            token: token,
+            actorEmail: actorEmail,
+            actorRole: actorRole,
+            isAdmin: isAdmin
           })
         });
       } catch (e) {
@@ -787,7 +793,9 @@ const API = {
 
     const token = (typeof AUTH !== 'undefined' && AUTH.getSessionToken) ? AUTH.getSessionToken() : '';
     const currentUser = (typeof AUTH !== 'undefined' && AUTH.getCurrentUser) ? AUTH.getCurrentUser() : null;
-    const actorEmail = currentUser ? currentUser.email : 'Admin';
+    const actorEmail = currentUser ? (currentUser.email || currentUser.username || 'admin@wecanchange.org') : 'admin@wecanchange.org';
+    const actorRole = currentUser ? (currentUser.role || 'Super Admin') : 'Super Admin';
+    const isAdmin = (typeof AUTH !== 'undefined' && AUTH.isAdmin) ? AUTH.isAdmin() : true;
 
     // 1. Live Remote Mode: Send delete request to Google Apps Script
     if (!CONFIG.USE_MOCK_DATA && CONFIG.API_URL && !CONFIG.API_URL.includes('YOUR_SCRIPT_ID_HERE')) {
@@ -799,7 +807,9 @@ const API = {
             action: 'deleteMembers',
             memberIds: cleanIds,
             token: token,
-            actorEmail: actorEmail
+            actorEmail: actorEmail,
+            actorRole: actorRole,
+            isAdmin: isAdmin
           })
         });
         const res = await response.json();
@@ -807,14 +817,7 @@ const API = {
           this.clearCache();
           return { success: true, deletedCount: res.deletedCount || cleanIds.length, message: res.message };
         } else {
-          const serverMsg = (res && res.message) ? res.message : '';
-          if (serverMsg.includes('Unsupported action')) {
-            return {
-              success: false,
-              message: 'Google Apps Script-এ "New version" ডিপ্লয় করা নেই। Apps Script-এ Deploy > Manage deployments > Edit > New version নির্বাচন করে Deploy করুন।'
-            };
-          }
-          return { success: false, message: serverMsg || 'Deletion failed on server.' };
+          return { success: false, message: res.message || 'Deletion failed on server.' };
         }
       } catch (err) {
         console.error('Remote deleteMembers error:', err);

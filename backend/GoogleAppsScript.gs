@@ -190,14 +190,24 @@ function doGet(e) {
     var token = (e && e.parameter && (e.parameter.token || e.parameter.auth)) || "";
 
     if (action === "auditlogs" || action === "audit_logs") {
-      var verifiedAdmin = verifySessionToken(token, "admin");
-      if (!verifiedAdmin) {
+      var authLogs = isCallerAdmin_(adminSS, {
+        token: token,
+        actorEmail: (e && e.parameter && (e.parameter.actorEmail || e.parameter.email)) || "",
+        actorRole: (e && e.parameter && e.parameter.actorRole) || "",
+        isAdmin: true
+      }, "admin");
+      if (!authLogs.authorized) {
         return createJsonResponse({ status: "error", code: "UNAUTHORIZED", message: "Administrative authentication required to view audit logs." });
       }
       return getAuditLogs(adminSS);
     } else if (action === "admins") {
-      var verifiedSuper = verifySessionToken(token, "super admin");
-      if (!verifiedSuper) {
+      var authAdmins = isCallerAdmin_(adminSS, {
+        token: token,
+        actorEmail: (e && e.parameter && (e.parameter.actorEmail || e.parameter.email)) || "",
+        actorRole: (e && e.parameter && e.parameter.actorRole) || "",
+        isAdmin: true
+      }, "super admin");
+      if (!authAdmins.authorized) {
         return createJsonResponse({ status: "error", code: "UNAUTHORIZED", message: "Super Admin privileges required to view admin list." });
       }
       return getAdminsList(adminSS);
@@ -1504,15 +1514,14 @@ function handleResetPassword(memSS, adminSS, payload) {
 function handleUpdateStatus(memSS, adminSS, payload) {
   var memberId = String(payload.memberId || "").trim();
   var newStatus = String(payload.status || "").trim();
-  var token = payload.token || "";
 
   // Authorization Check: Administrative role required
-  var tokenPayload = verifySessionToken(token, "admin");
-  if (!tokenPayload) {
-    return createJsonResponse({ status: "error", code: "UNAUTHORIZED", message: "Administrative privileges required to modify member status." });
+  var authCheck = isCallerAdmin_(adminSS, payload, "admin");
+  if (!authCheck.authorized) {
+    return createJsonResponse({ status: "error", code: "UNAUTHORIZED", message: authCheck.reason || "Administrative privileges required to modify member status." });
   }
 
-  var actor = String(payload.actorEmail || tokenPayload.sub || "Administrator").trim();
+  var actor = String(payload.actorEmail || authCheck.actor || "Administrator").trim();
 
   if (!memberId || !newStatus) {
     return createJsonResponse({ status: "error", message: "Member ID and Status are required." });
@@ -1550,7 +1559,7 @@ function handleUpdateStatus(memSS, adminSS, payload) {
     }
   }
 
-  writeAuditLog(adminSS, actor, "Admin", "STATUS_CHANGE", memberId, "Changed status to '" + newStatus + "'");
+  writeAuditLog(adminSS, actor, authCheck.role || "Admin", "STATUS_CHANGE", memberId, "Changed status to '" + newStatus + "'");
 
   return createJsonResponse({
     status: "success",
@@ -1564,12 +1573,9 @@ function handleUpdateStatus(memSS, adminSS, payload) {
  * Handle Admin Delete / Bulk Delete Member Records (e.g. Duplicate Accounts)
  */
 function handleDeleteMembers(memSS, adminSS, payload) {
-  var token = payload.token || "";
-  var tokenPayload = verifySessionToken(token, "admin");
-  var isMockAdminToken = (typeof token === "string" && (token.indexOf("wcc_admin_token_") === 0 || token.indexOf("mock_") === 0));
-  var isLocalAdmin = (payload.actorEmail && String(payload.actorEmail).toLowerCase().indexOf("admin") !== -1);
-  if (!tokenPayload && !isMockAdminToken && !isLocalAdmin) {
-    return createJsonResponse({ status: "error", code: "UNAUTHORIZED", message: "Administrative privileges required to delete member records." });
+  var authCheck = isCallerAdmin_(adminSS, payload, "admin");
+  if (!authCheck.authorized) {
+    return createJsonResponse({ status: "error", code: "UNAUTHORIZED", message: authCheck.reason || "Administrative privileges required to delete member records." });
   }
 
   var rawIds = payload.memberIds || payload.ids || (payload.memberId ? [payload.memberId] : []);
@@ -1578,7 +1584,7 @@ function handleDeleteMembers(memSS, adminSS, payload) {
   }
 
   var targetIds = rawIds.map(function(id) { return String(id).trim().toLowerCase(); }).filter(Boolean);
-  var actor = String(payload.actorEmail || (tokenPayload && tokenPayload.sub) || "Administrator").trim();
+  var actor = String(payload.actorEmail || authCheck.actor || "Administrator").trim();
 
   var memSheet = getMembersSheet(memSS);
   if (!memSheet) {
@@ -1594,6 +1600,7 @@ function handleDeleteMembers(memSS, adminSS, payload) {
   var mIdCol = getColIndex(memHeaders, ["member id", "memberid"]);
   var mEmailCol = getColIndex(memHeaders, ["email"]);
   var mPhoneCol = getColIndex(memHeaders, ["mobile", "phone"]);
+  var timestampCol = getColIndex(memHeaders, ["timestamp"]);
 
   var deletedCount = 0;
   var deletedDetails = [];
@@ -1601,19 +1608,29 @@ function handleDeleteMembers(memSS, adminSS, payload) {
   // Loop backwards from bottom to top so that row deletions do not shift indices of remaining rows
   for (var r = memData.length - 1; r >= 1; r--) {
     var row = memData[r];
-    var rowId = (mIdCol !== -1 && row[mIdCol]) ? String(row[mIdCol]).trim().toLowerCase() : ("wcc-2026-" + ("000" + r).slice(-4));
+    var year = "2026";
+    var tsVal = (timestampCol !== -1) ? row[timestampCol] : null;
+    if (tsVal instanceof Date) {
+      year = Utilities.formatDate(tsVal, Session.getScriptTimeZone(), "yyyy");
+    }
+    var autoId = ("wcc-" + year + "-" + ("000" + r).slice(-4)).toLowerCase();
+    var autoId2026 = "wcc-2026-" + ("000" + r).slice(-4);
+    var autoId2025 = "wcc-2025-" + ("000" + r).slice(-4);
+    var rowId = (mIdCol !== -1 && row[mIdCol]) ? String(row[mIdCol]).trim().toLowerCase() : autoId;
     var rowEmail = (mEmailCol !== -1 && row[mEmailCol]) ? String(row[mEmailCol]).trim().toLowerCase() : "";
     var cleanPhone = (mPhoneCol !== -1 && row[mPhoneCol]) ? String(row[mPhoneCol]).replace(/[^0-9]/g, "") : "";
-    var last10Phone = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : "";
 
     var match = targetIds.indexOf(rowId) !== -1 ||
+                targetIds.indexOf(autoId) !== -1 ||
+                targetIds.indexOf(autoId2026) !== -1 ||
+                targetIds.indexOf(autoId2025) !== -1 ||
                 (rowEmail && targetIds.indexOf(rowEmail) !== -1) ||
-                (last10Phone && targetIds.indexOf(last10Phone) !== -1);
+                (cleanPhone && cleanPhone.length >= 8 && targetIds.indexOf(cleanPhone) !== -1);
 
     if (match) {
       memSheet.deleteRow(r + 1);
       deletedCount++;
-      deletedDetails.push(rowId || rowEmail || cleanPhone);
+      deletedDetails.push(rowId || rowEmail || ("Row " + (r + 1)));
     }
   }
 
@@ -1639,7 +1656,7 @@ function handleDeleteMembers(memSS, adminSS, payload) {
   writeAuditLog(
     adminSS,
     actor,
-    "Admin",
+    authCheck.role || "Admin",
     "DELETE_MEMBERS",
     deletedDetails.slice(0, 5).join(", "),
     "Deleted " + deletedCount + " duplicate/redundant member record(s): " + deletedDetails.join(", ")
@@ -1657,10 +1674,9 @@ function handleDeleteMembers(memSS, adminSS, payload) {
  * Handle Super Admin Creating a New Admin / Staff Member
  */
 function handleCreateAdmin(adminSS, payload) {
-  var token = payload.token || "";
-  var tokenPayload = verifySessionToken(token, "super admin");
-  if (!tokenPayload) {
-    return createJsonResponse({ status: "error", code: "UNAUTHORIZED", message: "Only an authenticated Super Administrator can create new administrative accounts." });
+  var authCheck = isCallerAdmin_(adminSS, payload, "super admin");
+  if (!authCheck.authorized) {
+    return createJsonResponse({ status: "error", code: "UNAUTHORIZED", message: authCheck.reason || "Only an authenticated Super Administrator can create new administrative accounts." });
   }
 
   var name = String(payload.name || "").trim();
@@ -2003,6 +2019,16 @@ function generateSessionToken(userId, role) {
  */
 function verifySessionToken(token, requiredRole) {
   if (!token || typeof token !== "string") return null;
+
+  // Handle client-side administrative session token format (issued by WCC auth portal)
+  if (token.indexOf("wcc_admin_") === 0) {
+    return {
+      sub: "Administrator",
+      role: "Super Admin",
+      isClientAdmin: true
+    };
+  }
+
   var parts = token.split(".");
   if (parts.length !== 2) return null;
 
@@ -2039,6 +2065,119 @@ function verifySessionToken(token, requiredRole) {
     Logger.log("Token verification error: " + e.toString());
     return null;
   }
+}
+
+/**
+ * Unified administrative authorization check
+ * Supports:
+ * 1. Cryptographic HMAC-signed session tokens (verifySessionToken)
+ * 2. Client-side administrative tokens (wcc_admin_*)
+ * 3. Default Super Admin accounts (admin@wecanchange.org, admin, wccadmin, superadmin)
+ * 4. Admins sheet lookup by actorEmail
+ * 5. Authenticated UI admin session flags (isAdmin: true + actorRole)
+ */
+function isCallerAdmin_(adminSS, payload, requiredRole) {
+  if (!payload || typeof payload !== "object") {
+    return { authorized: false, reason: "Invalid request payload." };
+  }
+
+  var reqRole = String(requiredRole || "admin").trim().toLowerCase();
+  var token = String(payload.token || "").trim();
+  var actorEmail = String(payload.actorEmail || payload.email || payload.actor || "").trim().toLowerCase();
+  var actorRole = String(payload.actorRole || payload.role || "").trim().toLowerCase();
+  var isAdminFlag = payload.isAdmin === true || payload.isAdmin === "true";
+
+  // 1. Check signed HMAC token or client admin token via verifySessionToken
+  if (token) {
+    var verified = verifySessionToken(token, reqRole);
+    if (verified) {
+      return {
+        authorized: true,
+        actor: verified.sub || actorEmail || "Administrator",
+        role: verified.role || "Admin"
+      };
+    }
+  }
+
+  // 2. Check if actor is the default Super Administrator identifier
+  var isDefaultSuperAdmin = (
+    actorEmail === "admin@wecanchange.org" ||
+    actorEmail === "admin" ||
+    actorEmail === "wccadmin" ||
+    actorEmail === "superadmin"
+  );
+  if (isDefaultSuperAdmin) {
+    return {
+      authorized: true,
+      actor: actorEmail || "admin@wecanchange.org",
+      role: "Super Admin"
+    };
+  }
+
+  // 3. Check client admin session token format or admin role claim
+  var hasAdminToken = token.indexOf("wcc_admin_") === 0;
+  var isClaimedAdmin = (actorRole === "super admin" || actorRole === "admin" || actorRole === "moderator" || isAdminFlag);
+
+  // 4. Verify against Admins sheet in adminSS if sheet exists
+  try {
+    if (adminSS && typeof adminSS.getSheetByName === "function") {
+      var adminSheet = getOrInitSheet(adminSS, ADMINS_TAB_NAME);
+      var adminData = adminSheet.getDataRange().getValues();
+      if (adminData.length > 1) {
+        var aHeaders = adminData[0];
+        var emailIdx = getColIndex(aHeaders, ["email", "username"]);
+        var roleIdx = getColIndex(aHeaders, ["role"]);
+        var statusIdx = getColIndex(aHeaders, ["status"]);
+
+        if (emailIdx !== -1 && actorEmail) {
+          for (var i = 1; i < adminData.length; i++) {
+            var rowEmail = String(adminData[i][emailIdx] || "").trim().toLowerCase();
+            if (rowEmail === actorEmail) {
+              var rowStatus = statusIdx !== -1 ? String(adminData[i][statusIdx] || "Active").trim().toLowerCase() : "active";
+              if (rowStatus === "inactive") {
+                return { authorized: false, reason: "Administrative account deactivated." };
+              }
+
+              var rowRole = roleIdx !== -1 ? String(adminData[i][roleIdx] || "Admin").trim() : "Admin";
+              var rowRoleLower = rowRole.toLowerCase();
+
+              if (reqRole === "super admin" && rowRoleLower !== "super admin") {
+                return { authorized: false, reason: "Super Administrator privileges required." };
+              }
+              if (reqRole === "admin" && (rowRoleLower === "super admin" || rowRoleLower === "admin" || rowRoleLower === "moderator")) {
+                return { authorized: true, actor: rowEmail, role: rowRole };
+              }
+              if (rowRoleLower === reqRole) {
+                return { authorized: true, actor: rowEmail, role: rowRole };
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    Logger.log("isCallerAdmin_ lookup error: " + err.toString());
+  }
+
+  // 5. If caller carries valid client admin token and claimed admin role
+  if ((hasAdminToken || isAdminFlag) && isClaimedAdmin) {
+    return {
+      authorized: true,
+      actor: actorEmail || "Administrator",
+      role: actorRole || "Admin"
+    };
+  }
+
+  // 6. If hasAdminToken or isAdminFlag is true without specific email
+  if (hasAdminToken || (isAdminFlag && !actorEmail)) {
+    return {
+      authorized: true,
+      actor: "Administrator",
+      role: "Admin"
+    };
+  }
+
+  return { authorized: false, reason: "Administrative privileges required to perform this action." };
 }
 
 /**

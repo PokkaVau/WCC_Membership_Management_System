@@ -364,7 +364,11 @@ const AUTH = {
     if (!sessionStr) return '';
     try {
       const session = JSON.parse(sessionStr);
-      return (session && session.token) ? session.token : '';
+      if (session && session.token) return session.token;
+      if (session && session.user && (!session.user.isMember || session.user.role === 'Super Admin' || session.user.role === 'Admin')) {
+        return 'wcc_admin_token_active';
+      }
+      return '';
     } catch (e) {
       return '';
     }

@@ -386,6 +386,7 @@ const UTILS = {
       nid: nid,
       bloodGroup: getVal('Blood', 'blood_group', 'bloodGroup', 'Blood Group', 'রক্তের গ্রুপ'),
       rawBloodGroup: getVal('Blood', 'blood_group', 'bloodGroup', 'Blood Group', 'রক্তের গ্রুপ'),
+      lastBloodDonation: getVal('Last Blood Donation Date', 'last_blood_donation', 'lastBloodDonation', 'Last Blood Date', 'lastBloodDate', 'Last Blood Donation', 'সর্বশেষ রক্তদানের তারিখ', 'সর্বশেষ রক্তদান'),
       phone: phone,
       email: getVal('Email', 'email', 'email_address', 'Email Address', 'ইমেইল', 'ই-মেইল'),
       presentAddress: presentAddress,
@@ -428,6 +429,7 @@ const UTILS = {
     normalized.formattedDob = this.formatDate(normalized.dob);
     normalized.formattedRegDate = this.formatDate(normalized.registrationDate || normalized.timestamp);
     normalized.formattedJoiningDate = this.formatDate(normalized.joiningDate || normalized.registrationDate || normalized.timestamp);
+    normalized.formattedLastBloodDonation = normalized.lastBloodDonation ? this.formatDate(normalized.lastBloodDonation) : '';
 
     // Blood group clean & normalization (Full Bengali & English support)
     normalized.bloodGroup = this.normalizeBloodGroup(normalized.bloodGroup);
@@ -477,6 +479,201 @@ const UTILS = {
   renderBloodBadge(bg) {
     if (!bg) return '<span class="text-muted">-</span>';
     return `<span class="badge badge-blood">${this.escapeHTML(bg)}</span>`;
+  },
+
+  /**
+   * Generate direct WhatsApp click-to-chat URL
+   * Normalizes Bangladeshi numbers (+880, 880, 01...) to full international digits
+   */
+  getWhatsAppUrl(phone, message = '') {
+    if (!phone) return '';
+    let digits = String(phone).replace(/[^0-9]/g, '');
+    if (digits.startsWith('0')) {
+      digits = '88' + digits;
+    } else if (digits.length === 10 && digits.startsWith('1')) {
+      digits = '880' + digits;
+    }
+    const base = `https://wa.me/${digits}`;
+    return message ? `${base}?text=${encodeURIComponent(message)}` : base;
+  },
+
+  /**
+   * Format any date value into YYYY-MM-DD for native HTML5 date input
+   */
+  toDateInputFormat(dateVal) {
+    if (!dateVal) return '';
+    const d = this.parseDate(dateVal);
+    if (!d || isNaN(d.getTime())) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(String(dateVal).trim())) {
+        return String(dateVal).trim();
+      }
+      return '';
+    }
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  },
+
+  /**
+   * Blood Donation Eligibility (minimum 90 days / 3 months recovery interval)
+   */
+  getBloodDonationEligibility(dateVal) {
+    if (!dateVal) {
+      return {
+        hasDate: false,
+        eligible: true,
+        daysSince: null,
+        statusText: 'রক্তদানের তথ্য নেই',
+        badgeHtml: '<span class="badge" style="background: rgba(255,255,255,0.06); color: var(--text-muted); font-size: 0.72rem;">তথ্য নেই</span>'
+      };
+    }
+    const d = this.parseDate(dateVal);
+    if (!d || isNaN(d.getTime())) {
+      return {
+        hasDate: false,
+        eligible: true,
+        daysSince: null,
+        statusText: 'রক্তদানের তথ্য নেই',
+        badgeHtml: '<span class="badge" style="background: rgba(255,255,255,0.06); color: var(--text-muted); font-size: 0.72rem;">তথ্য নেই</span>'
+      };
+    }
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays >= 90) {
+      return {
+        hasDate: true,
+        eligible: true,
+        daysSince: diffDays,
+        statusText: `রক্ত দিতে প্রস্তুত (${diffDays} দিন আগে দান করেছেন)`,
+        badgeHtml: `<span class="badge badge-active" title="Last donated ${diffDays} days ago" style="font-size: 0.72rem;">✓ প্রস্তুত (${diffDays} দিন আগে)</span>`
+      };
+    } else if (diffDays >= 0) {
+      const remainingDays = 90 - diffDays;
+      return {
+        hasDate: true,
+        eligible: false,
+        daysSince: diffDays,
+        remainingDays: remainingDays,
+        statusText: `বিশ্রামরত (${diffDays} দিন আগে দান করেছেন)`,
+        badgeHtml: `<span class="badge" title="Donated ${diffDays} days ago (${remainingDays} days left to recover)" style="background: rgba(241,173,26,0.15); color: var(--wcc-gold); border: 1px solid rgba(241,173,26,0.3); font-size: 0.72rem;">⏳ বিশ্রামরত (${diffDays} দিন আগে)</span>`
+      };
+    } else {
+      return {
+        hasDate: true,
+        eligible: true,
+        daysSince: 0,
+        statusText: 'তারিখ রেকর্ডকৃত',
+        badgeHtml: '<span class="badge badge-active" style="font-size: 0.72rem;">রেকর্ডকৃত</span>'
+      };
+    }
+  },
+
+  /**
+   * Detect duplicate members by matching Phone, Email, or NID
+   * Returns list of duplicate groups, each with master/original and duplicate records
+   */
+  findDuplicateGroups(members) {
+    if (!Array.isArray(members) || members.length <= 1) return [];
+
+    const normalizePhoneDigits = (p) => {
+      if (!p) return '';
+      const digits = String(p).replace(/[^0-9]/g, '');
+      return digits.length >= 10 ? digits.slice(-10) : '';
+    };
+
+    const memberList = members.filter(m => m && (m.phone || m.email || m.nid));
+    const parent = new Array(memberList.length).fill(0).map((_, i) => i);
+
+    function find(i) {
+      if (parent[i] === i) return i;
+      parent[i] = find(parent[i]);
+      return parent[i];
+    }
+
+    function union(i, j) {
+      const rootI = find(i);
+      const rootJ = find(j);
+      if (rootI !== rootJ) parent[rootI] = rootJ;
+    }
+
+    const phoneIndex = new Map();
+    const emailIndex = new Map();
+    const nidIndex = new Map();
+
+    memberList.forEach((m, idx) => {
+      const pKey = normalizePhoneDigits(m.phone);
+      const eKey = (m.email && m.email.includes('@')) ? m.email.toLowerCase().trim() : '';
+      const nidDigits = m.nid ? String(m.nid).replace(/[^0-9]/g, '') : '';
+      const nKey = nidDigits.length >= 10 ? nidDigits : '';
+
+      if (pKey) {
+        if (phoneIndex.has(pKey)) union(idx, phoneIndex.get(pKey));
+        else phoneIndex.set(pKey, idx);
+      }
+      if (eKey) {
+        if (emailIndex.has(eKey)) union(idx, emailIndex.get(eKey));
+        else emailIndex.set(eKey, idx);
+      }
+      if (nKey) {
+        if (nidIndex.has(nKey)) union(idx, nidIndex.get(nKey));
+        else nidIndex.set(nKey, idx);
+      }
+    });
+
+    const clusters = new Map();
+    memberList.forEach((m, idx) => {
+      const root = find(idx);
+      if (!clusters.has(root)) clusters.set(root, []);
+      clusters.get(root).push(m);
+    });
+
+    const duplicateGroups = [];
+    for (const [root, cluster] of clusters.entries()) {
+      if (cluster.length > 1) {
+        // Sort chronologically ascending (oldest record is the master/original)
+        cluster.sort((a, b) => {
+          const tA = new Date(a.registrationDate || a.timestamp || 0).getTime() || 0;
+          const tB = new Date(b.registrationDate || b.timestamp || 0).getTime() || 0;
+          return tA - tB;
+        });
+
+        const sample = cluster[0];
+        const pKey = normalizePhoneDigits(sample.phone);
+        const eKey = (sample.email && sample.email.includes('@')) ? sample.email.toLowerCase().trim() : '';
+        const nKey = sample.nid ? String(sample.nid).replace(/[^0-9]/g, '') : '';
+
+        let matchType = 'Same Details';
+        let matchVal = '';
+        if (pKey && cluster.every(c => normalizePhoneDigits(c.phone) === pKey)) {
+          matchType = 'Same Phone (একই মোবাইল)';
+          matchVal = sample.phone;
+        } else if (eKey && cluster.every(c => c.email && c.email.toLowerCase().trim() === eKey)) {
+          matchType = 'Same Email (একই ইমেইল)';
+          matchVal = sample.email;
+        } else if (nKey && cluster.every(c => String(c.nid).replace(/[^0-9]/g, '') === nKey)) {
+          matchType = 'Same NID (একই জাতীয় পরিচয়পত্র)';
+          matchVal = sample.nid;
+        } else {
+          matchType = 'Shared Phone/Email (একই মোবাইল বা ইমেইল)';
+          matchVal = sample.phone || sample.email;
+        }
+
+        duplicateGroups.push({
+          groupId: 'grp_' + root,
+          matchType: matchType,
+          matchValue: matchVal,
+          master: cluster[0],
+          duplicates: cluster.slice(1),
+          allMembers: cluster,
+          totalCount: cluster.length
+        });
+      }
+    }
+
+    return duplicateGroups;
   },
 
   /**

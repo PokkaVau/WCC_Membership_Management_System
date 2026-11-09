@@ -676,7 +676,8 @@ const API = {
       'currentlyStudying', 'classYear', 'currentInstitution', 'institution',
       'lastPublicExam', 'publicExamResult', 'lastQualification', 'degree',
       'lastResult', 'lastInstitution',
-      'profession', 'workplace', 'photo', 'bloodGroup', 'gender', 'district', 'upazila'
+      'profession', 'workplace', 'photo', 'bloodGroup', 'gender', 'district', 'upazila',
+      'lastBloodDonation', 'lastBloodDonationDate'
     ];
 
     allowed.forEach(k => {
@@ -685,6 +686,11 @@ const API = {
         target[k] = fields[k];
       }
     });
+
+    if (fields.lastBloodDonationDate || fields.lastBloodDonation) {
+      target.lastBloodDonation = fields.lastBloodDonationDate || fields.lastBloodDonation;
+      target.formattedLastBloodDonation = UTILS.formatDate(target.lastBloodDonation);
+    }
 
     // Update alias consistency and student flag
     if (target.currentInstitution) target.institution = target.currentInstitution;
@@ -767,6 +773,66 @@ const API = {
     }
 
     return target;
+  },
+
+  /**
+   * Delete single or multiple member records (Admin Action - e.g. Duplicate Accounts)
+   */
+  async deleteMembers(memberIds) {
+    if (!Array.isArray(memberIds)) memberIds = [memberIds];
+    const cleanIds = memberIds.map(id => String(id).trim().toLowerCase()).filter(Boolean);
+    if (cleanIds.length === 0) {
+      return { success: false, message: 'No valid member IDs provided for deletion.' };
+    }
+
+    const token = (typeof AUTH !== 'undefined' && AUTH.getSessionToken) ? AUTH.getSessionToken() : '';
+    const currentUser = (typeof AUTH !== 'undefined' && AUTH.getCurrentUser) ? AUTH.getCurrentUser() : null;
+    const actorEmail = currentUser ? currentUser.email : 'Admin';
+
+    // 1. Live Remote Mode: Send delete request to Google Apps Script
+    if (!CONFIG.USE_MOCK_DATA && CONFIG.API_URL && !CONFIG.API_URL.includes('YOUR_SCRIPT_ID_HERE')) {
+      try {
+        const response = await fetch(CONFIG.API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'deleteMembers',
+            memberIds: cleanIds,
+            token: token,
+            actorEmail: actorEmail
+          })
+        });
+        const res = await response.json();
+        if (res.status === 'success') {
+          this.clearCache();
+          return { success: true, deletedCount: res.deletedCount || cleanIds.length, message: res.message };
+        } else {
+          return { success: false, message: res.message || 'Deletion failed on server.' };
+        }
+      } catch (err) {
+        console.error('Remote deleteMembers error:', err);
+        return { success: false, message: 'Network communication failed: ' + err.message };
+      }
+    }
+
+    // 2. Mock / Local Offline Mode
+    const allMembers = await this.fetchMembers();
+    const targetSet = new Set(cleanIds);
+    const remaining = allMembers.filter(m => {
+      const mId = String(m.memberId || '').toLowerCase().trim();
+      const mEmail = String(m.email || '').toLowerCase().trim();
+      return !targetSet.has(mId) && !targetSet.has(mEmail);
+    });
+
+    const deletedCount = allMembers.length - remaining.length;
+    this.setCachedMembers(remaining);
+    this.logAudit(actorEmail, 'Admin', 'DELETE_MEMBERS', cleanIds.slice(0, 3).join(', '), `Deleted ${deletedCount} duplicate member record(s).`);
+
+    return {
+      success: true,
+      deletedCount: deletedCount,
+      message: `${deletedCount} duplicate member record(s) deleted successfully.`
+    };
   },
 
   /**

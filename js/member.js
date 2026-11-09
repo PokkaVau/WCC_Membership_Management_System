@@ -104,6 +104,7 @@ function renderProfileSections(m) {
       ${renderField('Date of Birth', m.formattedDob)}
       ${renderField('Calculated Age', ageDisplay)}
       ${renderField('Blood Group', UTILS.renderBloodBadge(m.bloodGroup), true)}
+      ${renderField('Last Blood Donation (সর্বশেষ রক্তদান)', m.formattedLastBloodDonation ? `${m.formattedLastBloodDonation} ${UTILS.getBloodDonationEligibility(m.lastBloodDonation).badgeHtml}` : 'তথ্য নেই', true)}
       ${renderField('Mobile Number', m.phone)}
       ${renderField('Email Address', m.email)}
     `;
@@ -313,6 +314,8 @@ function bindProfileActions(m) {
       document.getElementById('editWorkplace').value = m.workplace || m.organization || '';
       document.getElementById('editGender').value = m.gender || '';
       document.getElementById('editBloodGroup').value = m.bloodGroup || '';
+      const bloodDateEl = document.getElementById('editLastBloodDonation');
+      if (bloodDateEl) bloodDateEl.value = UTILS.toDateInputFormat(m.lastBloodDonation || m.lastBloodDonationDate);
       document.getElementById('editPhoto').value = m.photo || m.photoUrl || '';
       
       const photoPreview = document.getElementById('editPhotoPreview');
@@ -407,6 +410,7 @@ function bindProfileActions(m) {
         workplace: document.getElementById('editWorkplace').value.trim(),
         gender: document.getElementById('editGender').value,
         bloodGroup: document.getElementById('editBloodGroup').value,
+        lastBloodDonationDate: document.getElementById('editLastBloodDonation') ? document.getElementById('editLastBloodDonation').value.trim() : '',
         photo: (drivePhotoUrl && drivePhotoUrl.startsWith('http')) ? drivePhotoUrl : (m.photo || m.photoUrl || '')
       };
 
@@ -414,6 +418,8 @@ function bindProfileActions(m) {
         const res = await API.updateMemberProfile(m.memberId, updates);
         if (res.success) {
           Object.assign(m, updates);
+          m.lastBloodDonation = updates.lastBloodDonationDate;
+          m.formattedLastBloodDonation = updates.lastBloodDonationDate ? UTILS.formatDate(updates.lastBloodDonationDate) : '';
           if (updates.photo) m.photoUrl = UTILS.convertGoogleDriveUrl(updates.photo);
           renderProfileHeader(m);
           renderProfileSections(m);

@@ -54,6 +54,7 @@ async function initializeMembersDirectory() {
     }
 
     applyFiltersAndSort();
+    initDuplicateAccountsFeature();
   } catch (err) {
     console.error('Failed to load members:', err);
     UTILS.showToast('Failed to load member directory: ' + (err.message || 'Network issue'), 'error');
@@ -351,10 +352,16 @@ function renderCurrentPage() {
             </div>
           </div>
         </td>
-        <td>${UTILS.renderBloodBadge(m.bloodGroup)}</td>
+        <td>
+          ${UTILS.renderBloodBadge(m.bloodGroup)}
+          ${m.lastBloodDonation ? `<div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 3px;" title="Last Blood Donation Date">🩸 ${UTILS.escapeHTML(m.formattedLastBloodDonation || m.lastBloodDonation)}</div>` : ''}
+        </td>
         <td>
           <div class="member-contact-cell">
-            <span class="contact-phone">📞 ${UTILS.escapeHTML(m.phone || 'Not provided')}</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span class="contact-phone">📞 ${UTILS.escapeHTML(m.phone || 'Not provided')}</span>
+              ${m.phone ? `<a href="${UTILS.getWhatsAppUrl(m.phone)}" target="_blank" rel="noopener noreferrer" class="badge" style="background:#25D366; color:#FFF; text-decoration:none; display:inline-flex; align-items:center; gap:2px; font-size:0.68rem; padding:1px 5px; border-radius:4px; font-weight:600;">💬 WA</a>` : ''}
+            </div>
             <span class="contact-email" title="${UTILS.escapeHTML(m.email || '')}">✉️ ${UTILS.escapeHTML(m.email || 'Not provided')}</span>
           </div>
         </td>
@@ -401,6 +408,10 @@ function renderCurrentPage() {
             <span class="val">${UTILS.renderBloodBadge(m.bloodGroup)}</span>
           </div>
           <div class="member-card-detail-item">
+            <span class="lbl">Last Blood Date</span>
+            <span class="val" style="font-size: 0.75rem;">${m.formattedLastBloodDonation || (m.lastBloodDonation ? UTILS.formatDate(m.lastBloodDonation) : 'তথ্য নেই')}</span>
+          </div>
+          <div class="member-card-detail-item">
             <span class="lbl">District</span>
             <span class="val">${UTILS.escapeHTML(m.district || 'N/A')}</span>
           </div>
@@ -408,15 +419,16 @@ function renderCurrentPage() {
             <span class="lbl">Phone</span>
             <span class="val">${UTILS.escapeHTML(m.phone || 'N/A')}</span>
           </div>
-          <div class="member-card-detail-item">
-            <span class="lbl">Registered</span>
-            <span class="val">${UTILS.escapeHTML(m.formattedRegDate)}</span>
-          </div>
         </div>
         <div class="member-card-footer">
           <a href="member.html?id=${encodeURIComponent(m.memberId)}" class="btn btn-sm btn-secondary" style="flex:1;">
             View
           </a>
+          ${m.phone ? `
+            <a href="${UTILS.getWhatsAppUrl(m.phone)}" target="_blank" rel="noopener noreferrer" class="btn btn-sm" style="background:#25D366; color:#FFF; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; gap:3px; padding: 0.4rem 0.6rem;">
+              💬 WA
+            </a>
+          ` : ''}
           <button type="button" onclick="downloadMemberPDFDirectly('${UTILS.escapeHTML(m.memberId)}')" class="btn btn-sm btn-crimson" style="flex:1;">
             PDF
           </button>
@@ -544,4 +556,190 @@ function showTableError(err) {
   if (mobileContainer) {
     mobileContainer.innerHTML = errorHtml;
   }
+}
+
+/**
+ * Duplicate Accounts Manager (Detection & 1-Click Batch Deletion)
+ */
+let duplicateFeatureInitialized = false;
+
+function initDuplicateAccountsFeature() {
+  const btnOpen = document.getElementById('btnManageDuplicates');
+  const badge = document.getElementById('duplicateBadge');
+  const modal = document.getElementById('duplicateAccountsModal');
+  const btnClose = document.getElementById('btnCloseDuplicatesModal');
+  const btnCloseFooter = document.getElementById('btnCloseDuplicatesModalFooter');
+  const btnDeleteAll = document.getElementById('btnDeleteAllDuplicates');
+  const container = document.getElementById('duplicateGroupsContainer');
+  const emptyState = document.getElementById('duplicateEmptyState');
+  const banner = document.getElementById('duplicateSummaryBanner');
+  const statsEl = document.getElementById('duplicateSummaryStats');
+
+  if (!btnOpen || !modal) return;
+
+  function updateBadge() {
+    const groups = UTILS.findDuplicateGroups(allMembersData);
+    const totalDups = groups.reduce((sum, g) => sum + g.duplicates.length, 0);
+    if (badge) {
+      if (totalDups > 0) {
+        badge.textContent = totalDups;
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+    return { groups, totalDups };
+  }
+
+  function renderDuplicates() {
+    const { groups, totalDups } = updateBadge();
+
+    if (groups.length === 0 || totalDups === 0) {
+      container.innerHTML = '';
+      emptyState.style.display = 'block';
+      banner.style.display = 'none';
+      return;
+    }
+
+    emptyState.style.display = 'none';
+    banner.style.display = 'flex';
+    statsEl.textContent = `মোট ${groups.length} টি ডুপ্লিকেট গ্রুপে ${totalDups} টি অপ্রয়োজনীয় অতিরিক্ত অ্যাকাউন্ট পাওয়া গেছে।`;
+    btnDeleteAll.innerHTML = `<span>🗑️</span> 1-Click Delete All (${totalDups}) Duplicates`;
+
+    container.innerHTML = groups.map(g => {
+      const master = g.master;
+      const dups = g.duplicates;
+
+      return `
+        <div class="card" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.15rem; background: var(--bg-card);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; padding-bottom: 0.65rem; border-bottom: 1px solid var(--border-subtle); flex-wrap: wrap; gap: 0.5rem;">
+            <div>
+              <span style="font-size: 0.82rem; font-weight: 700; color: var(--wcc-gold); text-transform: uppercase;">
+                ${UTILS.escapeHTML(g.matchType)}:
+              </span>
+              <strong style="font-size: 0.95rem; color: var(--text-primary); margin-left: 5px;">
+                ${UTILS.escapeHTML(g.matchValue || '-')}
+              </strong>
+              <span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 6px;">
+                (${g.totalCount} accounts found)
+              </span>
+            </div>
+            <button type="button" class="btn btn-sm btn-delete-group" data-ids="${dups.map(d => d.memberId).join(',')}" style="border: 1px solid var(--wcc-crimson); color: var(--wcc-crimson-light); background: transparent; font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; cursor: pointer;">
+              🗑️ Delete ${dups.length} Duplicate(s)
+            </button>
+          </div>
+
+          <!-- Master / Original Record -->
+          <div style="background: rgba(46, 204, 113, 0.08); border: 1px solid rgba(46, 204, 113, 0.3); border-radius: var(--radius-sm); padding: 0.6rem 0.85rem; margin-bottom: 0.65rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.65rem;">
+              <span class="badge badge-active" style="font-size: 0.7rem; font-weight: 700;">🛡️ ORIGINAL (রাখা হবে)</span>
+              <strong style="color: var(--text-primary); font-size: 0.88rem;">${UTILS.escapeHTML(master.name)}</strong>
+              <span style="font-family: monospace; font-size: 0.78rem; color: var(--wcc-gold);">${UTILS.escapeHTML(master.memberId)}</span>
+            </div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 0.85rem; align-items: center;">
+              <span>📅 Reg: ${UTILS.escapeHTML(master.formattedRegDate || master.timestamp || '-')}</span>
+              <span>🩸 ${UTILS.escapeHTML(master.bloodGroup || '-')}</span>
+              <span>📞 ${UTILS.escapeHTML(master.phone || '-')}</span>
+            </div>
+          </div>
+
+          <!-- Redundant Duplicate Records -->
+          <div style="display: flex; flex-direction: column; gap: 0.45rem;">
+            ${dups.map(d => `
+              <div style="background: rgba(231, 76, 60, 0.06); border: 1px dashed rgba(231, 76, 60, 0.35); border-radius: var(--radius-sm); padding: 0.6rem 0.85rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.65rem;">
+                  <span class="badge badge-blood" style="font-size: 0.7rem;">⚠️ DUPLICATE</span>
+                  <strong style="color: var(--text-primary); font-size: 0.85rem;">${UTILS.escapeHTML(d.name)}</strong>
+                  <span style="font-family: monospace; font-size: 0.78rem; color: var(--text-muted);">${UTILS.escapeHTML(d.memberId)}</span>
+                </div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 0.75rem; align-items: center;">
+                  <span>📅 Reg: ${UTILS.escapeHTML(d.formattedRegDate || d.timestamp || '-')}</span>
+                  <span>🩸 ${UTILS.escapeHTML(d.bloodGroup || '-')}</span>
+                  <button type="button" class="btn btn-sm btn-single-delete" data-id="${UTILS.escapeHTML(d.memberId)}" style="background: transparent; color: #E74C3C; border: 1px solid rgba(231, 76, 60, 0.4); font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; cursor: pointer;" title="Delete this duplicate">
+                    ✕ Delete
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Bind Group Delete Buttons
+    container.querySelectorAll('.btn-delete-group').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const ids = (btn.getAttribute('data-ids') || '').split(',').filter(Boolean);
+        await executeDeleteMembers(ids);
+      });
+    });
+
+    // Bind Single Delete Buttons
+    container.querySelectorAll('.btn-single-delete').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        if (id) await executeDeleteMembers([id]);
+      });
+    });
+  }
+
+  async function executeDeleteMembers(idsToDelete) {
+    if (!idsToDelete || idsToDelete.length === 0) return;
+
+    const count = idsToDelete.length;
+    const confirmMsg = `আপনি কি নিশ্চিতভাবে এই ${count} টি ডুপ্লিকেট অ্যাকাউন্ট মুছে ফেলতে চান?\n\nএটি গুগল শিট ও ডাটাবেস থেকে স্থায়ীভাবে মুছে যাবে। আসল (Original) অ্যাকাউন্ট সংরক্ষিত থাকবে।`;
+
+    if (!confirm(confirmMsg)) return;
+
+    btnDeleteAll.disabled = true;
+    btnDeleteAll.innerHTML = `<span>⏳</span> Deleting...`;
+    UTILS.showToast(`Deleting ${count} duplicate account(s)...`, 'info');
+
+    try {
+      const res = await API.deleteMembers(idsToDelete);
+      if (res.success) {
+        UTILS.showToast(res.message || `${count} duplicate account(s) deleted successfully!`, 'success');
+        // Refresh directory data
+        allMembersData = await API.fetchMembers();
+        filteredMembersData = [...allMembersData];
+        populateFilterDropdowns(allMembersData);
+        applyFiltersAndSort();
+        renderDuplicates();
+      } else {
+        UTILS.showToast(res.message || 'Failed to delete duplicate accounts.', 'error');
+      }
+    } catch (e) {
+      console.error('Delete duplicate error:', e);
+      UTILS.showToast('Error deleting accounts: ' + e.message, 'error');
+    } finally {
+      btnDeleteAll.disabled = false;
+      btnDeleteAll.innerHTML = `<span>🗑️</span> 1-Click Delete All Duplicates`;
+    }
+  }
+
+  if (!duplicateFeatureInitialized) {
+    duplicateFeatureInitialized = true;
+
+    btnOpen.addEventListener('click', () => {
+      modal.classList.add('active');
+      renderDuplicates();
+    });
+
+    const closeModal = () => modal.classList.remove('active');
+    if (btnClose) btnClose.addEventListener('click', closeModal);
+    if (btnCloseFooter) btnCloseFooter.addEventListener('click', closeModal);
+
+    btnDeleteAll.addEventListener('click', async () => {
+      const groups = UTILS.findDuplicateGroups(allMembersData);
+      const allDupIds = groups.flatMap(g => g.duplicates.map(d => d.memberId));
+      if (allDupIds.length === 0) {
+        UTILS.showToast('No duplicate accounts to delete.', 'info');
+        return;
+      }
+      await executeDeleteMembers(allDupIds);
+    });
+  }
+
+  // Initial badge update
+  updateBadge();
 }

@@ -5,12 +5,12 @@
  * Architecture:
  * 1. "WCC Members" Sheet (Primary Form & Directory Sheet):
  *    - Stores all member responses from the WCC Membership Form.
- *    - Exact 26 Columns:
+ *    - Primary 26 Columns (+ Col 27 Last Blood Donation Date):
  *      Timestamp | Name (BN) | Name (EN) | DOB | Father | Mother | NID/BRN |
  *      Blood | Mobile | Email | Present Add | Permanent Add | Currently Studying |
  *      Class/Year | Current Institution | Last Public Exam | Public Exam Result |
  *      Last Qualification | Last Result | Last Institution | Profession |
- *      Workplace | Membership | Wing | Reason | Photo URL
+ *      Workplace | Membership | Wing | Reason | Photo URL | Last Blood Donation Date
  *    - Handled with zero disruption to form responses.
  * 
  * 2. Admin, Auth & Audit Sheet (Secondary / Dedicated Admin Spreadsheet):
@@ -26,12 +26,13 @@
    ============================================================================== */
 
 // 1. Existing WCC Members Google Spreadsheet ID:
-// Copy this from the URL of your existing sheet: https://docs.google.com/spreadsheets/d/PASTE_THIS_ID_HERE/edit
-// This allows you to KEEP your existing registration script 100% untouched and safe!
-var WCC_MEMBERS_SPREADSHEET_ID = "";
+var WCC_MEMBERS_SPREADSHEET_ID = "1ICqMb8VYXdQjV-8KnusvgBL7jW-fGXL1obKtSLGsGuM";
 
 // 2. Name of the sheet tab where the registration form records members:
-var MEMBERS_TAB_NAME = "WCC Members";
+var MEMBERS_TAB_NAME = "Sheet1";
+
+// 3. Upload Folder Name in Google Drive:
+var UPLOAD_FOLDER_NAME = "WCC Photo Uploads(Membership Form)";
 
 // 3. Separate Admin & Audit Spreadsheet ID (Optional):
 // If left empty (""), Admins, Member_Auth, and Audit_Log will live in the spreadsheet where this script is installed.
@@ -92,15 +93,16 @@ function resetRateLimit(key) {
 function authorizeAndSetupDrivePermissions() {
   Logger.log("Testing Google Drive and Spreadsheet Permissions...");
   try {
-    var folders = DriveApp.getFoldersByName("WCC_Member_Photos");
+    var folderName = (typeof UPLOAD_FOLDER_NAME !== "undefined" && UPLOAD_FOLDER_NAME) ? UPLOAD_FOLDER_NAME : "WCC Photo Uploads(Membership Form)";
+    var folders = DriveApp.getFoldersByName(folderName);
     var folder;
     if (folders.hasNext()) {
       folder = folders.next();
-      Logger.log("Existing 'WCC_Member_Photos' folder verified: " + folder.getUrl());
+      Logger.log("Existing '" + folderName + "' folder verified: " + folder.getUrl());
     } else {
-      folder = DriveApp.createFolder("WCC_Member_Photos");
+      folder = DriveApp.createFolder(folderName);
       folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-      Logger.log("Created new 'WCC_Member_Photos' folder: " + folder.getUrl());
+      Logger.log("Created new '" + folderName + "' folder: " + folder.getUrl());
     }
     var memSS = getMembersSpreadsheet();
     var adminSS = getAdminSpreadsheet();
@@ -268,6 +270,13 @@ function doPost(e) {
 
       case "updatestatus":
         resp = handleUpdateStatus(memSS, adminSS, contents);
+        invalidateMembersCache();
+        return resp;
+
+      case "deletemember":
+      case "deletemembers":
+      case "bulkdeletemembers":
+        resp = handleDeleteMembers(memSS, adminSS, contents);
         invalidateMembersCache();
         return resp;
 
@@ -698,13 +707,15 @@ function handleNewFormSubmission(memSS, adminSS, p) {
         var fileName = cleanName + "_" + Date.now() + ".jpg";
         var blob = Utilities.newBlob(decoded, mimeType, fileName);
 
-        // Upload to Drive folder "WCC_Member_Photos"
-        var folders = DriveApp.getFoldersByName("WCC_Member_Photos");
+        // Upload to Drive folder
+        var folderName = (typeof UPLOAD_FOLDER_NAME !== "undefined" && UPLOAD_FOLDER_NAME) ? UPLOAD_FOLDER_NAME : "WCC Photo Uploads(Membership Form)";
+        var folders = DriveApp.getFoldersByName(folderName);
         var folder;
         if (folders.hasNext()) {
           folder = folders.next();
         } else {
-          folder = DriveApp.createFolder("WCC_Member_Photos");
+          folder = DriveApp.createFolder(folderName);
+          folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
         }
         var file = folder.createFile(blob);
         file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
@@ -718,41 +729,42 @@ function handleNewFormSubmission(memSS, adminSS, p) {
       photoUrl = (p.photo && String(p.photo).indexOf("http") === 0) ? p.photo : ((p.photoUrl && String(p.photoUrl).indexOf("http") === 0) ? p.photoUrl : "");
     }
 
-    // Exact 26 Columns matching PokkaVau/WCC_MemberShip_Form-V2-
+    // Exact 27 Columns matching user's Form script
     var row = [
-      timestampStr,                                         // 1. Timestamp
+      new Date(),                                           // 1. Timestamp
       String(p.name_bn || p.nameBn || "").trim(),           // 2. Name (BN)
       String(p.name_en || p.nameEn || p.name || "").trim(), // 3. Name (EN)
       String(p.dob || "").trim(),                           // 4. DOB
-      String(p.father_name || p.father || "").trim(),       // 5. Father
-      String(p.mother_name || p.mother || "").trim(),       // 6. Mother
-      String(p.nid_brn || p.nid || "").trim(),              // 7. NID/BRN
-      String(p.blood_group || p.blood || "").trim(),        // 8. Blood
-      String(p.mobile || p.phone || "").trim(),             // 9. Mobile
-      String(p.email || "").trim().toLowerCase(),           // 10. Email
-      String(p.present_address || p.presentAddress || "").trim(), // 11. Present Add
-      String(p.permanent_address || p.permanentAddress || "").trim(), // 12. Permanent Add
-      String(p.currently_studying || p.currentlyStudying || "না").trim(), // 13. Currently Studying
-      String(p.studying_class || p.classYear || "").trim(), // 14. Class/Year
-      String(p.current_institution || p.currentInstitution || "").trim(), // 15. Current Institution
-      String(p.last_public_exam || p.lastPublicExam || "").trim(), // 16. Last Public Exam
-      String(p.public_exam_result || p.publicExamResult || "").trim(), // 17. Public Exam Result
-      String(p.last_qualification || p.lastQualification || "").trim(), // 18. Last Qualification
-      String(p.last_result || p.lastResult || "").trim(),   // 19. Last Result
-      String(p.last_institution || p.lastInstitution || "").trim(), // 20. Last Institution
-      String(p.profession || "").trim(),                    // 21. Profession
-      String(p.workplace || "").trim(),                     // 22. Workplace
-      String(p.membership || p.membershipType || "General").trim(), // 23. Membership
-      String(p.wing || "").trim(),                          // 24. Wing
-      String(p.reason || "").trim(),                        // 25. Reason
-      photoUrl                                              // 26. Photo URL
+      String(p.gender || p.Gender || "").trim(),            // 5. Gender (লিঙ্গ)
+      String(p.father_name || p.father || "").trim(),       // 6. Father
+      String(p.mother_name || p.mother || "").trim(),       // 7. Mother
+      String(p.nid_brn || p.nid || "").trim(),              // 8. NID/BRN
+      String(p.blood_group || p.blood || "").trim(),        // 9. Blood
+      String(p.mobile || p.phone || "").trim(),             // 10. Mobile
+      String(p.email || "").trim().toLowerCase(),           // 11. Email
+      String(p.present_address || p.presentAddress || "").trim(), // 12. Present Add
+      String(p.permanent_address || p.permanentAddress || "").trim(), // 13. Permanent Add
+      String(p.currently_studying || p.currentlyStudying || "না").trim(), // 14. Currently Studying
+      String(p.studying_class || p.classYear || "").trim(), // 15. Class/Year
+      String(p.current_institution || p.currentInstitution || "").trim(), // 16. Current Institution
+      String(p.last_public_exam || p.lastPublicExam || "").trim(), // 17. Last Public Exam
+      String(p.public_exam_result || p.publicExamResult || "").trim(), // 18. Public Exam Result
+      String(p.last_qualification || p.lastQualification || "").trim(), // 19. Last Qualification
+      String(p.last_result || p.lastResult || "").trim(),   // 20. Last Result
+      String(p.last_institution || p.lastInstitution || "").trim(), // 21. Last Institution
+      String(p.profession || "").trim(),                    // 22. Profession
+      String(p.workplace || "").trim(),                     // 23. Workplace
+      String(p.membership || p.membershipType || "General").trim(), // 24. Membership
+      String(p.wing || "").trim(),                          // 25. Wing
+      String(p.reason || "").trim(),                        // 26. Reason
+      photoUrl                                              // 27. Photo URL
     ];
 
     // HARD GUARD: Protect against Google Sheets 50,000 char per cell limit
     for (var i = 0; i < row.length; i++) {
       var itemVal = String(row[i] || "");
       if (itemVal.indexOf("data:image") === 0 || itemVal.indexOf(";base64,") !== -1 || itemVal.length > 5000) {
-        if (i === 25 || itemVal.indexOf("data:image") === 0 || itemVal.indexOf(";base64,") !== -1) {
+        if (i === 26 || itemVal.indexOf("data:image") === 0 || itemVal.indexOf(";base64,") !== -1) {
           row[i] = ""; // Strip raw image data completely from cell
         } else {
           row[i] = itemVal.substring(0, 5000);
@@ -900,6 +912,10 @@ function handleMemberSelfUpdate(memSS, adminSS, payload) {
     blood: ["blood", "blood_group"],
     bloodGroup: ["blood", "blood_group"],
     blood_group: ["blood", "blood_group"],
+    lastBloodDonation: ["last blood donation date", "last blood donation", "last_blood_donation", "last blood date", "সর্বশেষ রক্তদানের তারিখ", "সর্বশেষ রক্তদান"],
+    lastBloodDonationDate: ["last blood donation date", "last blood donation", "last_blood_donation", "last blood date", "সর্বশেষ রক্তদানের তারিখ", "সর্বশেষ রক্তদান"],
+    last_blood_donation: ["last blood donation date", "last blood donation", "last_blood_donation", "last blood date", "সর্বশেষ রক্তদানের তারিখ", "সর্বশেষ রক্তদান"],
+    lastBloodDate: ["last blood donation date", "last blood donation", "last_blood_donation", "last blood date", "সর্বশেষ রক্তদানের তারিখ", "সর্বশেষ রক্তদান"],
     phone: ["mobile", "phone"],
     mobile: ["mobile", "phone"],
     email: ["email"],
@@ -944,6 +960,13 @@ function handleMemberSelfUpdate(memSS, adminSS, payload) {
         continue;
       }
       var col = getColIndex(headers, fieldMapping[key]);
+      if (col === -1 && (key === "lastBloodDonation" || key === "lastBloodDonationDate" || key === "last_blood_donation" || key === "lastBloodDate")) {
+        // Auto-create "Last Blood Donation Date" header in row 1 if missing from the sheet
+        var lastCol = sheet.getLastColumn() + 1;
+        sheet.getRange(1, lastCol).setValue("Last Blood Donation Date");
+        headers.push("Last Blood Donation Date");
+        col = headers.length - 1;
+      }
       if (col !== -1) {
         var oldVal = sheet.getRange(targetRow, col + 1).getValue();
         var newVal = String(payload[key]).trim();
@@ -1021,12 +1044,13 @@ function savePhotoToDriveAndSheet(memSS, adminSS, targetRow, headers, memberId, 
   var fileName = cleanPrefix + "_photo_" + Date.now() + "." + ext;
   var blob = Utilities.newBlob(decoded, mimeType, fileName);
 
-  var folders = DriveApp.getFoldersByName("WCC_Member_Photos");
+  var folderName = (typeof UPLOAD_FOLDER_NAME !== "undefined" && UPLOAD_FOLDER_NAME) ? UPLOAD_FOLDER_NAME : "WCC Photo Uploads(Membership Form)";
+  var folders = DriveApp.getFoldersByName(folderName);
   var folder;
   if (folders.hasNext()) {
     folder = folders.next();
   } else {
-    folder = DriveApp.createFolder("WCC_Member_Photos");
+    folder = DriveApp.createFolder(folderName);
   }
 
   var file = folder.createFile(blob);
@@ -1533,6 +1557,95 @@ function handleUpdateStatus(memSS, adminSS, payload) {
     message: "Status updated successfully.",
     memberId: memberId,
     newStatus: newStatus
+  });
+}
+
+/**
+ * Handle Admin Delete / Bulk Delete Member Records (e.g. Duplicate Accounts)
+ */
+function handleDeleteMembers(memSS, adminSS, payload) {
+  var token = payload.token || "";
+  var tokenPayload = verifySessionToken(token, "admin");
+  if (!tokenPayload) {
+    return createJsonResponse({ status: "error", code: "UNAUTHORIZED", message: "Administrative privileges required to delete member records." });
+  }
+
+  var rawIds = payload.memberIds || payload.ids || (payload.memberId ? [payload.memberId] : []);
+  if (!Array.isArray(rawIds) || rawIds.length === 0) {
+    return createJsonResponse({ status: "error", message: "No member IDs provided for deletion." });
+  }
+
+  var targetIds = rawIds.map(function(id) { return String(id).trim().toLowerCase(); }).filter(Boolean);
+  var actor = String(payload.actorEmail || tokenPayload.sub || "Administrator").trim();
+
+  var memSheet = getMembersSheet(memSS);
+  if (!memSheet) {
+    return createJsonResponse({ status: "error", message: "Members sheet could not be opened." });
+  }
+
+  var memData = memSheet.getDataRange().getValues();
+  if (memData.length <= 1) {
+    return createJsonResponse({ status: "error", message: "Members sheet has no data rows to delete." });
+  }
+
+  var memHeaders = memData[0];
+  var mIdCol = getColIndex(memHeaders, ["member id", "memberid"]);
+  var mEmailCol = getColIndex(memHeaders, ["email"]);
+  var mPhoneCol = getColIndex(memHeaders, ["mobile", "phone"]);
+
+  var deletedCount = 0;
+  var deletedDetails = [];
+
+  // Loop backwards from bottom to top so that row deletions do not shift indices of remaining rows
+  for (var r = memData.length - 1; r >= 1; r--) {
+    var row = memData[r];
+    var rowId = (mIdCol !== -1 && row[mIdCol]) ? String(row[mIdCol]).trim().toLowerCase() : ("wcc-2026-" + ("000" + r).slice(-4));
+    var rowEmail = (mEmailCol !== -1 && row[mEmailCol]) ? String(row[mEmailCol]).trim().toLowerCase() : "";
+    var cleanPhone = (mPhoneCol !== -1 && row[mPhoneCol]) ? String(row[mPhoneCol]).replace(/[^0-9]/g, "") : "";
+
+    var match = targetIds.indexOf(rowId) !== -1 ||
+                (rowEmail && targetIds.indexOf(rowEmail) !== -1);
+
+    if (match) {
+      memSheet.deleteRow(r + 1);
+      deletedCount++;
+      deletedDetails.push(rowId || rowEmail);
+    }
+  }
+
+  // Also remove corresponding login credentials from Member_Auth if any exist
+  try {
+    var authSheet = adminSS.getSheetByName(MEMBER_AUTH_TAB_NAME);
+    if (authSheet && authSheet.getLastRow() > 1) {
+      var aData = authSheet.getDataRange().getValues();
+      var aIdCol = getColIndex(aData[0], ["member id", "memberid"]);
+      var aEmailCol = getColIndex(aData[0], ["email"]);
+      for (var a = aData.length - 1; a >= 1; a--) {
+        var aId = (aIdCol !== -1 && aData[a][aIdCol]) ? String(aData[a][aIdCol]).trim().toLowerCase() : "";
+        var aEmail = (aEmailCol !== -1 && aData[a][aEmailCol]) ? String(aData[a][aEmailCol]).trim().toLowerCase() : "";
+        if ((aId && targetIds.indexOf(aId) !== -1) || (aEmail && targetIds.indexOf(aEmail) !== -1)) {
+          authSheet.deleteRow(a + 1);
+        }
+      }
+    }
+  } catch(authErr) {
+    Logger.log("Optional Member_Auth cleanup skip: " + authErr);
+  }
+
+  writeAuditLog(
+    adminSS,
+    actor,
+    "Admin",
+    "DELETE_MEMBERS",
+    deletedDetails.slice(0, 5).join(", "),
+    "Deleted " + deletedCount + " duplicate/redundant member record(s): " + deletedDetails.join(", ")
+  );
+
+  return createJsonResponse({
+    status: "success",
+    deletedCount: deletedCount,
+    deletedIds: deletedDetails,
+    message: deletedCount + " duplicate member record(s) deleted successfully."
   });
 }
 

@@ -357,6 +357,20 @@ const AUTH = {
   },
 
   /**
+   * Get current session auth token
+   */
+  getSessionToken() {
+    const sessionStr = localStorage.getItem(this.SESSION_KEY) || sessionStorage.getItem(this.SESSION_KEY);
+    if (!sessionStr) return '';
+    try {
+      const session = JSON.parse(sessionStr);
+      return (session && session.token) ? session.token : '';
+    } catch (e) {
+      return '';
+    }
+  },
+
+  /**
    * Get current logged-in user profile
    */
   getCurrentUser() {

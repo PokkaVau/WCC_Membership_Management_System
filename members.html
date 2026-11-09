@@ -130,6 +130,10 @@
             <p class="page-subtitle">Search, filter, inspect profiles, generate PDFs, and issue digital membership cards.</p>
           </div>
           <div class="page-actions">
+            <button type="button" id="btnManageDuplicates" class="btn btn-crimson" title="Detect and Delete Duplicate Member Records" style="display:inline-flex; align-items:center; gap:6px;">
+              <span>👥</span> Duplicate Accounts
+              <span id="duplicateBadge" style="display:none; font-size:0.7rem; padding:1px 6px; border-radius:10px; background:#FFFFFF; color:#B62A35; font-weight:700;">0</span>
+            </button>
             <button type="button" id="exportFilteredBtn" class="btn btn-secondary">
               <span>📥</span> Export Filtered (CSV)
             </button>
@@ -310,6 +314,61 @@
         </div>
       </div>
     </main>
+  </div>
+
+  <!-- Duplicate Accounts Management Modal -->
+  <div class="modal-overlay" id="duplicateAccountsModal" role="dialog" aria-modal="true">
+    <div class="modal-dialog" style="max-width: 880px; max-height: 90vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding: 1.15rem 1.5rem;">
+        <div>
+          <h3 class="modal-title" style="display: flex; align-items: center; gap: 0.5rem; color: var(--wcc-crimson-light); margin: 0;">
+            <span>👥</span> Duplicate Accounts Cleaner (ডুপ্লিকেট অ্যাকাউন্ট ব্যবস্থাপনা)
+          </h3>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0.25rem 0 0;">
+            একই মোবাইল নম্বর, ইমেইল বা NID থাকা মেম্বার অ্যাকাউন্টগুলো শনাক্ত করুন এবং এক ক্লিকে অতিরিক্ত ডুপ্লিকেটগুলো মুছে ফেলুন।
+          </p>
+        </div>
+        <button type="button" class="modal-close" id="btnCloseDuplicatesModal">&times;</button>
+      </div>
+
+      <div class="modal-body" style="overflow-y: auto; padding: 1.25rem 1.5rem; flex: 1;">
+        <!-- Summary Action Banner -->
+        <div id="duplicateSummaryBanner" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem 1.25rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+          <div>
+            <div id="duplicateSummaryStats" style="font-size: 0.92rem; font-weight: 700; color: var(--text-primary);">
+              Scanning for duplicate accounts...
+            </div>
+            <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;">
+              🛡️ প্রতিটি গ্রুপে সবচেয়ে পুরানো/মূল অ্যাকাউন্টটি (Original) সুরক্ষিত রাখা হবে।
+            </div>
+          </div>
+          <div>
+            <button type="button" id="btnDeleteAllDuplicates" class="btn btn-crimson" style="font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+              <span>🗑️</span> 1-Click Delete All Duplicates
+            </button>
+          </div>
+        </div>
+
+        <!-- Duplicate Groups Container -->
+        <div id="duplicateGroupsContainer" style="display: flex; flex-direction: column; gap: 1rem;">
+          <!-- Dynamically populated -->
+        </div>
+
+        <!-- Empty State (No duplicates) -->
+        <div id="duplicateEmptyState" style="display: none; text-align: center; padding: 3.5rem 1rem;">
+          <div style="font-size: 3.5rem; margin-bottom: 0.5rem;">🎉</div>
+          <h4 style="color: var(--text-primary); margin-bottom: 0.25rem;">No Duplicate Accounts Found</h4>
+          <p style="color: var(--text-muted); font-size: 0.85rem;">সিস্টেমে কোনো ডুপ্লিকেট অ্যাকাউন্ট পাওয়া যায়নি। সকল মেম্বারের তথ্য একক ও স্বতন্ত্র।</p>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 0.78rem; color: var(--text-muted);">
+          ⚠️ ডিলিট হওয়া রেকর্ড গুগল শিট থেকে স্থায়ীভাবে মুছে যাবে এবং অডিট ট্রেইলে সংরক্ষিত থাকবে।
+        </span>
+        <button type="button" id="btnCloseDuplicatesModalFooter" class="btn btn-secondary">Close</button>
+      </div>
+    </div>
   </div>
 
   <div id="toastContainer" class="toast-container"></div>

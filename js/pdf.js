@@ -286,7 +286,7 @@ const PDF_GENERATOR = {
                 ${statusText}
               </span>
               <span style="background-color: #FFFFFF; border: 1px solid #B62A35; color: #B62A35; font-size: 8.5px; font-weight: 700; padding: 1px 6px; border-radius: 3px;">
-                রক্তের গ্রুপ: ${this.escape(member.bloodGroup || 'N/A')}
+                রক্তের গ্রুপ: ${this.escape(member.bloodGroup || 'N/A')}${member.formattedLastBloodDonation ? ` (সর্বশেষ: ${this.escape(member.formattedLastBloodDonation)})` : ''}
               </span>
               <span style="background-color: #1D3557; color: #FFFFFF; font-size: 8.5px; font-weight: 600; padding: 2px 6px; border-radius: 3px;">
                 ${this.escape(member.membershipType || 'General Member')}

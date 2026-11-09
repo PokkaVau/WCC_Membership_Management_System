@@ -93,6 +93,53 @@
       gap: 0.75rem;
       margin-top: 2rem;
     }
+
+    .blood-filter-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+    }
+
+    .blood-pill {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      font-weight: 600;
+      font-size: 0.8rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: var(--radius-full);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .blood-pill:hover {
+      border-color: var(--wcc-crimson);
+      color: var(--wcc-crimson-light);
+    }
+
+    .blood-pill.active {
+      background: var(--wcc-crimson) !important;
+      color: #FFFFFF !important;
+      border-color: var(--wcc-crimson) !important;
+      box-shadow: 0 2px 8px rgba(182, 42, 53, 0.4);
+    }
+
+    .donor-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 1.15rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .donor-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+      border-color: rgba(182, 42, 53, 0.35);
+    }
   </style>
 </head>
 <body>
@@ -108,6 +155,9 @@
       </a>
 
       <div class="portal-actions-strip">
+        <button type="button" id="btnOpenBloodFinderNav" class="btn btn-sm btn-crimson" title="Emergency Blood Finder" style="display: inline-flex; align-items: center; gap: 5px;">
+          <span>🩸</span> Blood Donors
+        </button>
         <button type="button" class="theme-toggle-btn" id="themeToggleBtn" title="Toggle Theme">☀️</button>
         <button type="button" onclick="AUTH.logout()" class="btn btn-sm btn-outline-gold" title="Sign Out">
           <span>🚪</span> Sign Out
@@ -143,10 +193,13 @@
 
           <!-- Quick Action Buttons -->
           <div class="profile-action-bar">
+            <button type="button" id="btnOpenBloodFinderHero" class="btn btn-crimson" title="Emergency Blood Finder (জরুরি রক্ত অনুসন্ধান)">
+              <span>🩸</span> Emergency Blood Finder
+            </button>
             <button type="button" id="btnEditMyProfile" class="btn btn-primary" title="Update Your Profile Information">
               <span>✏️</span> Edit My Details
             </button>
-            <button type="button" id="btnDownloadMyPdf" class="btn btn-crimson" title="Download Official A4 PDF Document">
+            <button type="button" id="btnDownloadMyPdf" class="btn btn-secondary" title="Download Official A4 PDF Document">
               <span>📄</span> Download My PDF
             </button>
             <button type="button" id="btnViewMyQr" class="btn btn-outline-gold" title="View Verification QR">
@@ -188,6 +241,10 @@
                 <div class="info-item">
                   <span class="info-label">Blood Group (রক্তের গ্রুপ)</span>
                   <span class="info-value" id="valBloodGroup">-</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Last Blood Donation (সর্বশেষ রক্তদান)</span>
+                  <span class="info-value" id="valLastBloodDonation">-</span>
                 </div>
                 <div class="info-item">
                   <span class="info-label">Mobile Phone (মোবাইল)</span>
@@ -478,6 +535,14 @@
             </div>
           </div>
 
+          <div class="form-group" style="margin-bottom:1rem;">
+            <label for="editLastBloodDonation" class="form-label">Last Blood Donation Date (সর্বশেষ রক্তদানের তারিখ)</label>
+            <input type="date" id="editLastBloodDonation" class="form-control" />
+            <small style="color:var(--text-muted); font-size:0.75rem; display:block; margin-top:3px;">
+              যদি আপনি পূর্বে রক্তদান করে থাকেন তবে সর্বশেষ রক্তদানের তারিখ দিন।
+            </small>
+          </div>
+
           <div class="form-grid-1" style="margin-bottom:1rem;">
             <div class="form-group">
               <label class="form-label">Profile Photo (Upload to Google Drive)</label>
@@ -534,6 +599,76 @@
             <input type="text" id="qrLinkText" class="form-control" readonly style="font-size:0.75rem;" />
             <button type="button" id="btnCopyQrLink" class="btn btn-secondary btn-sm">Copy</button>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Emergency Blood Finder Modal -->
+  <div class="modal-overlay" id="bloodFinderModal" role="dialog" aria-modal="true">
+    <div class="modal-dialog" style="max-width: 880px; max-height: 90vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding: 1.15rem 1.5rem;">
+        <div>
+          <h3 class="modal-title" style="display: flex; align-items: center; gap: 0.5rem; color: var(--wcc-crimson-light); margin: 0;">
+            <span>🩸</span> Emergency Blood Finder (জরুরি রক্ত অনুসন্ধান)
+          </h3>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0.25rem 0 0;">
+            Find WCC members by blood group and connect directly via WhatsApp or phone call.
+          </p>
+        </div>
+        <button type="button" class="modal-close" id="btnCloseBloodFinder">&times;</button>
+      </div>
+      
+      <div class="modal-body" style="overflow-y: auto; padding: 1.25rem 1.5rem; flex: 1;">
+        <!-- Filter Controls -->
+        <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <label style="font-size: 0.8rem; font-weight: 700; color: var(--wcc-gold); margin: 0;">
+              SELECT BLOOD GROUP (রক্তের গ্রুপ নির্বাচন করুন):
+            </label>
+            <span style="font-size: 0.72rem; color: var(--text-muted);">Click any group to filter instantly</span>
+          </div>
+
+          <div class="blood-filter-pills" id="bloodFilterPills" style="margin-bottom: 0.85rem;">
+            <button type="button" class="blood-pill active" data-blood="ALL">All Groups (সকল)</button>
+            <button type="button" class="blood-pill" data-blood="B+">B+ (বি পজিটিভ)</button>
+            <button type="button" class="blood-pill" data-blood="O+">O+ (ও পজিটিভ)</button>
+            <button type="button" class="blood-pill" data-blood="A+">A+ (এ পজিটিভ)</button>
+            <button type="button" class="blood-pill" data-blood="AB+">AB+ (এবি পজিটিভ)</button>
+            <button type="button" class="blood-pill" data-blood="B-">B- (বি নেগেটিভ)</button>
+            <button type="button" class="blood-pill" data-blood="O-">O- (ও নেগেটিভ)</button>
+            <button type="button" class="blood-pill" data-blood="A-">A- (এ নেগেটিভ)</button>
+            <button type="button" class="blood-pill" data-blood="AB-">AB- (এবি নেগেটিভ)</button>
+          </div>
+
+          <div style="display: flex; gap: 0.75rem; align-items: center;">
+            <div style="flex: 1; position: relative;">
+              <input type="text" id="bloodSearchInput" class="form-control" placeholder="🔍 Search by donor name, district, or phone..." />
+            </div>
+            <button type="button" id="btnResetBloodFilters" class="btn btn-secondary btn-sm" title="Show All Donors">
+              Reset
+            </button>
+          </div>
+        </div>
+
+        <!-- Meta Summary Bar -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; font-size: 0.82rem;">
+          <span id="bloodResultsCount" style="color: var(--text-muted); font-weight: 600;">Loading blood donors...</span>
+          <span style="font-size: 0.75rem; color: var(--wcc-gold); display: flex; align-items: center; gap: 4px;">
+            <span>⚡</span> One-click WhatsApp message to donor
+          </span>
+        </div>
+
+        <!-- Donors Grid -->
+        <div id="bloodDonorsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem;">
+          <!-- Dynamically populated -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="bloodEmptyState" style="display: none; text-align: center; padding: 3rem 1rem;">
+          <div style="font-size: 3rem; margin-bottom: 0.5rem;">🩸</div>
+          <h4 style="color: var(--text-primary); margin-bottom: 0.25rem;">No Donors Found</h4>
+          <p style="color: var(--text-muted); font-size: 0.85rem;">No registered members match the selected blood group or search terms.</p>
         </div>
       </div>
     </div>
@@ -614,6 +749,16 @@
       document.getElementById('valMother').textContent = m.mother || '-';
       document.getElementById('valNid').textContent = m.nid || '-';
       document.getElementById('valBloodGroup').innerHTML = UTILS.renderBloodBadge(m.bloodGroup);
+      const lastBloodVal = m.formattedLastBloodDonation || (m.lastBloodDonation ? UTILS.formatDate(m.lastBloodDonation) : null);
+      const lastBloodEl = document.getElementById('valLastBloodDonation');
+      if (lastBloodEl) {
+        if (lastBloodVal) {
+          const elig = UTILS.getBloodDonationEligibility(m.lastBloodDonation);
+          lastBloodEl.innerHTML = `${UTILS.escapeHTML(lastBloodVal)} ${elig.badgeHtml}`;
+        } else {
+          lastBloodEl.innerHTML = `<span style="color:var(--text-muted); font-size:0.82rem;">তথ্য নেই (Not recorded)</span>`;
+        }
+      }
       document.getElementById('valPhone').textContent = m.phone || '-';
       document.getElementById('valEmail').textContent = m.email || '-';
       document.getElementById('valDob').textContent = m.formattedDob || m.dob || '-';
@@ -824,6 +969,7 @@
         document.getElementById('editWorkplace').value = member.workplace || member.organization || '';
         document.getElementById('editGender').value = member.gender || '';
         document.getElementById('editBloodGroup').value = member.bloodGroup || '';
+        document.getElementById('editLastBloodDonation').value = UTILS.toDateInputFormat(member.lastBloodDonation || member.lastBloodDonationDate);
         document.getElementById('editPhoto').value = member.photo || member.photoUrl || '';
         document.getElementById('editPhotoPreview').src = member.photoUrl || member.photo || CONFIG.ORG_INFO.defaultAvatarPath;
         document.getElementById('editNewPassword').value = '';
@@ -907,6 +1053,7 @@
           workplace: document.getElementById('editWorkplace').value.trim(),
           gender: document.getElementById('editGender').value,
           bloodGroup: document.getElementById('editBloodGroup').value,
+          lastBloodDonationDate: document.getElementById('editLastBloodDonation').value.trim(),
           photo: (drivePhotoUrl && drivePhotoUrl.startsWith('http')) ? drivePhotoUrl : (member.photo || member.photoUrl || '')
         };
 
@@ -921,12 +1068,180 @@
           UTILS.showToast('Profile updated in WCC Members sheet & logged in audit trail!', 'success');
           // Update in-memory member
           Object.assign(member, updates);
+          member.lastBloodDonation = updates.lastBloodDonationDate;
+          member.formattedLastBloodDonation = updates.lastBloodDonationDate ? UTILS.formatDate(updates.lastBloodDonationDate) : '';
           if (updates.photo) member.photoUrl = UTILS.convertGoogleDriveUrl(updates.photo);
           renderMemberProfile(member);
           closeEdit();
         } else {
           UTILS.showToast(res.message || 'Failed to update profile.', 'error');
         }
+      });
+
+      // Emergency Blood Finder Modal Controller
+      const bloodModal = document.getElementById('bloodFinderModal');
+      const btnOpenNav = document.getElementById('btnOpenBloodFinderNav');
+      const btnOpenHero = document.getElementById('btnOpenBloodFinderHero');
+      const btnCloseBlood = document.getElementById('btnCloseBloodFinder');
+      const pillsContainer = document.getElementById('bloodFilterPills');
+      const searchInput = document.getElementById('bloodSearchInput');
+      const btnReset = document.getElementById('btnResetBloodFilters');
+      const gridContainer = document.getElementById('bloodDonorsGrid');
+      const emptyState = document.getElementById('bloodEmptyState');
+      const countEl = document.getElementById('bloodResultsCount');
+
+      let allDonorsCache = null;
+      let selectedBloodGroup = 'ALL';
+      let searchQuery = '';
+
+      async function loadAndFilterDonors() {
+        if (!allDonorsCache) {
+          countEl.textContent = 'Loading member directory...';
+          try {
+            allDonorsCache = await API.fetchMembers();
+          } catch (e) {
+            console.error('Failed to load donors:', e);
+            countEl.textContent = 'Failed to load donors.';
+            return;
+          }
+        }
+
+        const cleanSearch = searchQuery.toLowerCase().trim();
+        const filtered = allDonorsCache.filter(m => {
+          if (!m.bloodGroup) return false;
+          // Blood group filter
+          if (selectedBloodGroup !== 'ALL') {
+            const mBg = (m.bloodGroup || '').toUpperCase().trim();
+            const targetBg = selectedBloodGroup.toUpperCase().trim();
+            if (mBg !== targetBg) return false;
+          }
+          // Text search filter
+          if (cleanSearch) {
+            const matchName = (m.name && m.name.toLowerCase().includes(cleanSearch)) ||
+                              (m.nameBn && m.nameBn.includes(cleanSearch));
+            const matchPhone = m.phone && m.phone.replace(/[^0-9]/g, '').includes(cleanSearch.replace(/[^0-9]/g, ''));
+            const matchDistrict = (m.district && m.district.toLowerCase().includes(cleanSearch)) ||
+                                  (m.presentAddress && m.presentAddress.toLowerCase().includes(cleanSearch));
+            if (!matchName && !matchPhone && !matchDistrict) return false;
+          }
+          return true;
+        });
+
+        // Update count text
+        const groupLabel = selectedBloodGroup === 'ALL' ? 'All Groups' : selectedBloodGroup;
+        countEl.textContent = `Found ${filtered.length} donor${filtered.length === 1 ? '' : 's'} (${groupLabel})`;
+
+        if (filtered.length === 0) {
+          gridContainer.innerHTML = '';
+          emptyState.style.display = 'block';
+        } else {
+          emptyState.style.display = 'none';
+          gridContainer.innerHTML = filtered.map(d => renderDonorCard(d, member)).join('');
+        }
+      }
+
+      function renderDonorCard(donor, requester) {
+        const dName = UTILS.escapeHTML(donor.name || 'WCC Member');
+        const dNameBn = donor.nameBn ? `<span style="font-size:0.75rem; color:var(--text-muted); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${UTILS.escapeHTML(donor.nameBn)}</span>` : '';
+        const photo = donor.photoUrl || CONFIG.ORG_INFO.defaultAvatarPath;
+        const bloodBadge = UTILS.renderBloodBadge(donor.bloodGroup);
+        const location = UTILS.escapeHTML(donor.district || donor.presentAddress || 'Location not specified');
+        const phone = donor.phone ? UTILS.escapeHTML(donor.phone) : 'Not provided';
+        const cleanPhone = donor.phone ? String(donor.phone).replace(/[^0-9]/g, '') : '';
+        
+        const lastDateFormatted = donor.formattedLastBloodDonation || (donor.lastBloodDonation ? UTILS.formatDate(donor.lastBloodDonation) : null);
+        const elig = UTILS.getBloodDonationEligibility(donor.lastBloodDonation);
+        
+        // Formulate pre-filled WhatsApp message in Bengali
+        const reqName = requester ? (requester.name || requester.nameBn || 'WCC Member') : 'WCC Member';
+        const reqPhone = requester && requester.phone ? requester.phone : '';
+        const senderTag = reqPhone ? `${reqName} (${reqPhone})` : reqName;
+        const donorBlood = donor.bloodGroup || 'Blood';
+        const waMsg = `আসসালামু আলাইকুম ${donor.name || 'ভাই/আপু'}, আমি WCC সদস্য ${senderTag}। আমাদের জরুরি ভিত্তিতে ${donorBlood} রক্তের প্রয়োজন। আপনি কি রক্তদান করতে বা সহায়তা করতে পারবেন?`;
+        const waUrl = UTILS.getWhatsAppUrl(donor.phone, waMsg);
+
+        return `
+          <div class="donor-card">
+            <div>
+              <div style="display:flex; align-items:center; gap:0.65rem; margin-bottom:0.75rem;">
+                <img src="${photo}" alt="${dName}" onerror="this.src='${CONFIG.ORG_INFO.defaultAvatarPath}'" style="width:44px; height:44px; border-radius:50%; object-fit:cover; border:2px solid var(--wcc-gold); flex-shrink:0;" />
+                <div style="flex:1; min-width:0;">
+                  <div style="font-weight:700; font-size:0.92rem; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${dName}</div>
+                  ${dNameBn}
+                  <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">📍 ${location}</div>
+                </div>
+                <div style="flex-shrink:0;">${bloodBadge}</div>
+              </div>
+
+              <div style="background:var(--bg-surface); border-radius:var(--radius-sm); padding:0.55rem 0.75rem; font-size:0.78rem; margin-bottom:0.75rem; border:1px solid var(--border-subtle);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
+                  <span style="color:var(--text-muted); font-size:0.72rem;">📞 Mobile:</span>
+                  <span style="font-weight:600; color:var(--text-primary); font-family:monospace;">${phone}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; padding-top:4px; border-top:1px dashed var(--border-subtle);">
+                  <span style="color:var(--text-muted); font-size:0.72rem;">🩸 Last Blood:</span>
+                  <span style="font-weight:600; font-size:0.72rem; color:var(--text-primary);">${lastDateFormatted || 'তথ্য নেই'}</span>
+                </div>
+                <div style="margin-top:4px; text-align:right;">
+                  ${elig.badgeHtml}
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex; gap:0.4rem; margin-top:0.35rem;">
+              ${cleanPhone ? `
+                <a href="${waUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-sm" style="flex:1; background:#25D366; color:#FFF; font-weight:600; border:none; display:inline-flex; align-items:center; justify-content:center; gap:5px; text-decoration:none; padding:0.45rem 0.5rem; font-size:0.78rem; border-radius:var(--radius-md);">
+                  <svg style="width:13px; height:13px; fill:currentColor;" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766 0-3.18-2.587-5.771-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.006c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86.174.086.275.072.376-.044.101-.116.433-.506.549-.68.116-.173.231-.145.39-.086s1.011.477 1.184.564.289.13.332.202c.045.072.045.419-.099.824zm-3.392-12.416c-5.514 0-10 4.486-10 10 0 1.845.503 3.575 1.38 5.064l-1.419 5.18 5.342-1.401c1.432.81 3.076 1.272 4.792 1.272 5.514 0 10-4.486 10-10s-4.486-10.115-10-10.115z"/></svg>
+                  WhatsApp
+                </a>
+                <a href="tel:${cleanPhone}" class="btn btn-sm btn-outline-gold" style="display:inline-flex; align-items:center; justify-content:center; gap:3px; padding:0.45rem 0.6rem; font-size:0.78rem; text-decoration:none;" title="Call ${dName}">
+                  📞 Call
+                </a>
+              ` : `
+                <button type="button" class="btn btn-sm btn-secondary" disabled style="width:100%; font-size:0.75rem; opacity:0.6;">No phone</button>
+              `}
+            </div>
+          </div>
+        `;
+      }
+
+      function openBloodFinder(preSelectBlood = null) {
+        if (preSelectBlood) {
+          selectedBloodGroup = preSelectBlood;
+          pillsContainer.querySelectorAll('.blood-pill').forEach(p => {
+            p.classList.toggle('active', p.getAttribute('data-blood') === preSelectBlood);
+          });
+        }
+        bloodModal.classList.add('active');
+        loadAndFilterDonors();
+      }
+
+      if (btnOpenNav) btnOpenNav.addEventListener('click', () => openBloodFinder());
+      if (btnOpenHero) btnOpenHero.addEventListener('click', () => openBloodFinder());
+      if (btnCloseBlood) btnCloseBlood.addEventListener('click', () => bloodModal.classList.remove('active'));
+
+      pillsContainer.querySelectorAll('.blood-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+          pillsContainer.querySelectorAll('.blood-pill').forEach(p => p.classList.remove('active'));
+          pill.classList.add('active');
+          selectedBloodGroup = pill.getAttribute('data-blood');
+          loadAndFilterDonors();
+        });
+      });
+
+      searchInput.addEventListener('input', UTILS.debounce(() => {
+        searchQuery = searchInput.value;
+        loadAndFilterDonors();
+      }, 200));
+
+      btnReset.addEventListener('click', () => {
+        selectedBloodGroup = 'ALL';
+        searchQuery = '';
+        searchInput.value = '';
+        pillsContainer.querySelectorAll('.blood-pill').forEach(p => {
+          p.classList.toggle('active', p.getAttribute('data-blood') === 'ALL');
+        });
+        loadAndFilterDonors();
       });
     }
   </script>

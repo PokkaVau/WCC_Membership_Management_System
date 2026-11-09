@@ -199,6 +199,9 @@
             <button type="button" id="btnEditMyProfile" class="btn btn-primary" title="Update Your Profile Information">
               <span>✏️</span> Edit My Details
             </button>
+            <button type="button" id="btnChangePassword" class="btn btn-outline-gold" title="Change Password (পাসওয়ার্ড পরিবর্তন)">
+              <span>🔑</span> Change Password
+            </button>
             <button type="button" id="btnDownloadMyPdf" class="btn btn-secondary" title="Download Official A4 PDF Document">
               <span>📄</span> Download My PDF
             </button>
@@ -674,6 +677,59 @@
     </div>
   </div>
 
+  <!-- Force Set Password Modal (shown when member logs in with default password) -->
+  <div class="modal-overlay" id="forceSetPasswordModal" role="dialog" aria-modal="true">
+    <div class="modal-dialog" style="max-width: 480px;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding: 1.25rem 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="modal-title" style="display: flex; align-items: center; gap: 0.5rem; color: var(--wcc-gold); margin: 0; font-size: 1.15rem;">
+          <span>🔐</span> নতুন পাসওয়ার্ড সেট করুন (Set Password)
+        </h3>
+        <button type="button" class="modal-close" id="btnCloseForcePasswordModal" style="display:none;">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 1.5rem;">
+        <div style="background: rgba(241, 173, 26, 0.1); border: 1px solid rgba(241, 173, 26, 0.3); border-radius: var(--radius-md); padding: 0.85rem 1rem; margin-bottom: 1.25rem;">
+          <p style="font-size: 0.85rem; color: var(--text-primary); margin: 0; line-height: 1.45;">
+            👋 <strong>স্বাগতম!</strong> আপনি ডিফল্ট পাসওয়ার্ড দিয়ে লগইন করেছেন। ভবিষ্যতে নিরাপদে লগইন করার জন্য অনুগ্রহ করে এখনই একটি নতুন পাসওয়ার্ড সেট করুন।
+          </p>
+        </div>
+
+        <form id="formForceSetPassword">
+          <div class="form-group" style="margin-bottom: 1rem;">
+            <label for="forceNewPassword" class="form-label" style="font-size: 0.85rem;">নতুন পাসওয়ার্ড (New Password) *</label>
+            <input 
+              type="password" 
+              id="forceNewPassword" 
+              class="form-control" 
+              placeholder="কমপক্ষে ৬ অক্ষরের পাসওয়ার্ড দিন" 
+              required 
+              minlength="6"
+              autocomplete="new-password"
+            />
+          </div>
+
+          <div class="form-group" style="margin-bottom: 1.25rem;">
+            <label for="forceConfirmPassword" class="form-label" style="font-size: 0.85rem;">পাসওয়ার্ড নিশ্চিত করুন (Confirm Password) *</label>
+            <input 
+              type="password" 
+              id="forceConfirmPassword" 
+              class="form-control" 
+              placeholder="একই পাসওয়ার্ড পুনরায় লিখুন" 
+              required 
+              minlength="6"
+              autocomplete="new-password"
+            />
+          </div>
+
+          <div id="forcePasswordError" style="display:none; color: #E74C3C; font-size: 0.8rem; margin-bottom: 1rem;"></div>
+
+          <button type="submit" id="btnSaveNewPassword" class="btn btn-primary btn-fill" style="width: 100%; padding: 0.75rem;">
+            <span>💾</span> সংরক্ষণ করুন (Save Password)
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <div id="toastContainer" class="toast-container"></div>
 
   <!-- Application Scripts -->
@@ -727,6 +783,12 @@
 
         document.getElementById('portalLoading').style.display = 'none';
         document.getElementById('portalContainer').style.display = 'block';
+
+        // Prompt member to set custom password if logged in with default password
+        if (currentUser.mustChangePassword) {
+          const forceModal = document.getElementById('forceSetPasswordModal');
+          if (forceModal) forceModal.classList.add('active');
+        }
       } catch (err) {
         console.error('Failed to load profile:', err);
         UTILS.showToast('Unable to load member profile.', 'error');
@@ -837,6 +899,83 @@
     }
 
     function bindMemberActions(member) {
+      // Password Change Handlers
+      const btnChangePass = document.getElementById('btnChangePassword');
+      const forceModal = document.getElementById('forceSetPasswordModal');
+      const closeForceBtn = document.getElementById('btnCloseForcePasswordModal');
+      const formForcePass = document.getElementById('formForceSetPassword');
+      const forceErr = document.getElementById('forcePasswordError');
+
+      if (btnChangePass) {
+        btnChangePass.addEventListener('click', () => {
+          if (closeForceBtn) closeForceBtn.style.display = 'block';
+          if (forceModal) forceModal.classList.add('active');
+          const pInput = document.getElementById('forceNewPassword');
+          if (pInput) pInput.focus();
+        });
+      }
+
+      if (closeForceBtn) {
+        closeForceBtn.addEventListener('click', () => {
+          if (forceModal) forceModal.classList.remove('active');
+        });
+      }
+
+      if (formForcePass) {
+        formForcePass.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const p1 = document.getElementById('forceNewPassword').value.trim();
+          const p2 = document.getElementById('forceConfirmPassword').value.trim();
+          const saveBtn = document.getElementById('btnSaveNewPassword');
+
+          if (p1.length < 6) {
+            forceErr.textContent = 'পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।';
+            forceErr.style.display = 'block';
+            return;
+          }
+          if (p1 !== p2) {
+            forceErr.textContent = 'উভয় পাসওয়ার্ড হুবহু মিলতে হবে।';
+            forceErr.style.display = 'block';
+            return;
+          }
+
+          forceErr.style.display = 'none';
+          saveBtn.disabled = true;
+          saveBtn.innerHTML = '<span>⏳</span> সংরক্ষণ হচ্ছে...';
+
+          try {
+            const currentUser = AUTH.getCurrentUser() || {};
+            const res = await API.updateMemberSelf(member.memberId, {
+              email: member.email || currentUser.email,
+              newPassword: p1
+            });
+
+            if (res.success) {
+              currentUser.mustChangePassword = false;
+              const sKey = AUTH.SESSION_KEY;
+              const s = AUTH.getSession();
+              if (s && s.user) {
+                s.user.mustChangePassword = false;
+                localStorage.setItem(sKey, JSON.stringify(s));
+                sessionStorage.setItem(sKey, JSON.stringify(s));
+              }
+              if (forceModal) forceModal.classList.remove('active');
+              if (closeForceBtn) closeForceBtn.style.display = 'block';
+              UTILS.showToast('অভিনন্দন! আপনার নতুন পাসওয়ার্ড সফলভাবে সংরক্ষিত হয়েছে।', 'success');
+            } else {
+              forceErr.textContent = res.message || 'পাসওয়ার্ড সংরক্ষণ করা যায়নি।';
+              forceErr.style.display = 'block';
+            }
+          } catch(err) {
+            forceErr.textContent = err.message || 'সার্ভার সমস্যা। আবার চেষ্টা করুন।';
+            forceErr.style.display = 'block';
+          } finally {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<span>💾</span> সংরক্ষণ করুন (Save Password)';
+          }
+        });
+      }
+
       // PDF Download
       document.getElementById('btnDownloadMyPdf').addEventListener('click', async () => {
         try {

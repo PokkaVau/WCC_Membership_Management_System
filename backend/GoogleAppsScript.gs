@@ -538,9 +538,58 @@ function handleLogin(memSS, adminSS, payload) {
         phone: memberPhone,
         status: memberAuthMatch.status,
         role: "Member",
-        isMember: true
+        isMember: true,
+        mustChangePassword: false
       }
     });
+  }
+
+  // 3. Default Password Login Check (e.g. wcc2026 or 123456) for any registered member in Sheet1
+  var isDefaultPass = (password === "wcc2026" || password === "123456");
+  for (var m3 = 1; m3 < memData.length; m3++) {
+    var rEmail = (mEmailIdx !== -1 && memData[m3][mEmailIdx]) ? String(memData[m3][mEmailIdx]).trim().toLowerCase() : "";
+    var autoId = "wcc-2026-" + ("000" + m3).slice(-4);
+    var autoId2025 = "wcc-2025-" + ("000" + m3).slice(-4);
+    var rId = (mIdIdx !== -1 && memData[m3][mIdIdx]) ? String(memData[m3][mIdIdx]).trim().toLowerCase() : autoId;
+    var rPhone = (mPhoneIdx !== -1 && memData[m3][mPhoneIdx]) ? String(memData[m3][mPhoneIdx]).replace(/[^0-9]/g, "") : "";
+    if (rPhone.indexOf("880") === 0) rPhone = rPhone.substring(3);
+    else if (rPhone.indexOf("88") === 0) rPhone = rPhone.substring(2);
+    if (rPhone.indexOf("0") === 0) rPhone = rPhone.substring(1);
+
+    var isMatch = (rEmail && rEmail === username) ||
+                  (rId && rId === username) ||
+                  (autoId === username) ||
+                  (autoId2025 === username) ||
+                  (cleanUserPhone.length >= 8 && rPhone && rPhone.slice(-10) === cleanUserPhone.slice(-10));
+
+    if (isMatch) {
+      if (isDefaultPass) {
+        resetRateLimit(rateLimitKey);
+        var defMemberId = (mIdIdx !== -1 && memData[m3][mIdIdx]) ? String(memData[m3][mIdIdx]).trim() : autoId.toUpperCase();
+        var defMemberToken = generateSessionToken(rEmail || defMemberId, "Member");
+        writeAuditLog(adminSS, defMemberId, "Member", "MEMBER_LOGIN_DEFAULT", defMemberId, "Member logged in with default password.");
+
+        return createJsonResponse({
+          status: "success",
+          token: defMemberToken,
+          user: {
+            memberId: defMemberId,
+            email: rEmail,
+            name: (mNameIdx !== -1 && memData[m3][mNameIdx]) ? String(memData[m3][mNameIdx]).trim() : "WCC Member",
+            phone: (mPhoneIdx !== -1 && memData[m3][mPhoneIdx]) ? String(memData[m3][mPhoneIdx]).trim() : "",
+            status: "Active",
+            role: "Member",
+            isMember: true,
+            mustChangePassword: true
+          }
+        });
+      } else {
+        return createJsonResponse({
+          status: "error",
+          message: "Incorrect password. If this is your first time logging in, please use default password: wcc2026"
+        });
+      }
+    }
   }
 
   if (isAdminAccount) {
@@ -1001,18 +1050,37 @@ function handleMemberSelfUpdate(memSS, adminSS, payload) {
     var authData = authSheet.getDataRange().getValues();
     var authHeaders = authData[0];
     var aEmailCol = getColIndex(authHeaders, ["email"]);
+    var aIdCol = getColIndex(authHeaders, ["member id", "memberid"]);
     var aHashCol = getColIndex(authHeaders, ["passwordhash", "password"]);
     var aSaltCol = getColIndex(authHeaders, ["salt"]);
 
+    var updatedAuth = false;
     for (var a = 1; a < authData.length; a++) {
-      if (String(authData[a][aEmailCol] || "").trim().toLowerCase() === email) {
+      var rowEmail = (aEmailCol !== -1 && authData[a][aEmailCol]) ? String(authData[a][aEmailCol]).trim().toLowerCase() : "";
+      var rowId = (aIdCol !== -1 && authData[a][aIdCol]) ? String(authData[a][aIdCol]).trim().toLowerCase() : "";
+      if ((email && rowEmail === email) || (memberId && rowId === memberId.toLowerCase())) {
         var newSalt = generateSalt();
         var newHash = hashPassword(payload.newPassword, newSalt);
         authSheet.getRange(a + 1, aHashCol + 1).setValue(newHash);
         authSheet.getRange(a + 1, aSaltCol + 1).setValue(newSalt);
         changes.push("Password updated securely");
+        updatedAuth = true;
         break;
       }
+    }
+
+    if (!updatedAuth) {
+      var newSalt2 = generateSalt();
+      var newHash2 = hashPassword(payload.newPassword, newSalt2);
+      authSheet.appendRow([
+        memberId || ("WCC-2026-" + ("000" + targetRow).slice(-4)),
+        email || "",
+        newHash2,
+        newSalt2,
+        "Active",
+        Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss")
+      ]);
+      changes.push("Password created securely in Member_Auth");
     }
   }
 

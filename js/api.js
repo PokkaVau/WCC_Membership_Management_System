@@ -643,12 +643,14 @@ const API = {
     // 1. Live Google Apps Script Cloud Web App
     if (!CONFIG.USE_MOCK_DATA && CONFIG.API_URL && !CONFIG.API_URL.includes('YOUR_SCRIPT_ID_HERE')) {
       try {
+        const token = (typeof AUTH !== 'undefined' && AUTH.getSessionToken) ? AUTH.getSessionToken() : '';
         const response = await fetch(CONFIG.API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({
             action: 'updateMemberProfile',
             memberId: memberId,
+            token: token,
             ...sanitizedFields
           })
         });

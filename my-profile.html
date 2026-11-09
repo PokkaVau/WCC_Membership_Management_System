@@ -952,12 +952,20 @@
 
             if (res.success) {
               currentUser.mustChangePassword = false;
-              const sKey = AUTH.SESSION_KEY;
-              const s = AUTH.getSession();
-              if (s && s.user) {
-                s.user.mustChangePassword = false;
-                localStorage.setItem(sKey, JSON.stringify(s));
-                sessionStorage.setItem(sKey, JSON.stringify(s));
+              if (typeof AUTH !== 'undefined' && typeof AUTH.updateSessionUser === 'function') {
+                AUTH.updateSessionUser({ mustChangePassword: false });
+              }
+              const sKey = (typeof AUTH !== 'undefined' && AUTH.SESSION_KEY) ? AUTH.SESSION_KEY : 'wcc_auth_session';
+              const sStr = localStorage.getItem(sKey) || sessionStorage.getItem(sKey);
+              if (sStr) {
+                try {
+                  const s = JSON.parse(sStr);
+                  if (s && s.user) {
+                    s.user.mustChangePassword = false;
+                    localStorage.setItem(sKey, JSON.stringify(s));
+                    sessionStorage.setItem(sKey, JSON.stringify(s));
+                  }
+                } catch(e) {}
               }
               if (forceModal) forceModal.classList.remove('active');
               if (closeForceBtn) closeForceBtn.style.display = 'block';

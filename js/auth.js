@@ -418,6 +418,36 @@ const AUTH = {
   },
 
   /**
+   * Get full session object
+   */
+  getSession() {
+    const sessionStr = localStorage.getItem(this.SESSION_KEY) || sessionStorage.getItem(this.SESSION_KEY);
+    if (!sessionStr) return null;
+    try {
+      return JSON.parse(sessionStr);
+    } catch (e) {
+      return null;
+    }
+  },
+
+  /**
+   * Update current session user properties safely
+   */
+  updateSessionUser(updates) {
+    const session = this.getSession();
+    if (!session || !session.user) return false;
+    session.user = Object.assign({}, session.user, updates);
+    const sessionStr = JSON.stringify(session);
+    if (localStorage.getItem(this.SESSION_KEY)) {
+      localStorage.setItem(this.SESSION_KEY, sessionStr);
+    }
+    if (sessionStorage.getItem(this.SESSION_KEY)) {
+      sessionStorage.setItem(this.SESSION_KEY, sessionStr);
+    }
+    return true;
+  },
+
+  /**
    * Get current logged-in user profile
    */
   getCurrentUser() {
@@ -662,3 +692,7 @@ const AUTH = {
     }
   }
 };
+
+if (typeof window !== 'undefined') {
+  window.AUTH = AUTH;
+}

@@ -56,6 +56,24 @@ var JWT_SECRET = (function() {
  * Enterprise Rate Limiting Helper using ScriptCache
  * Prevents brute-force attacks on login, OTP, and password reset
  */
+function isRateLimited(key, maxAttempts) {
+  try {
+    var cache = CacheService.getScriptCache();
+    var current = Number(cache.get(key) || 0);
+    return current >= (maxAttempts || 10);
+  } catch (e) {
+    return false;
+  }
+}
+
+function recordFailedAttempt(key, windowSeconds) {
+  try {
+    var cache = CacheService.getScriptCache();
+    var current = Number(cache.get(key) || 0);
+    cache.put(key, String(current + 1), windowSeconds || 900);
+  } catch (e) {}
+}
+
 function checkRateLimit(key, maxAttempts, windowSeconds) {
   try {
     var cache = CacheService.getScriptCache();
@@ -74,6 +92,30 @@ function resetRateLimit(key) {
   try {
     CacheService.getScriptCache().remove(key);
   } catch (e) {}
+}
+
+/**
+ * Concurrency Safety Lock Helper
+ * Guarantees atomic write execution under high concurrent load (e.g. 50+ users)
+ */
+function withScriptLock_(actionFn, timeoutMs) {
+  var lock = LockService.getScriptLock();
+  var waitMs = timeoutMs || 30000;
+  try {
+    lock.waitLock(waitMs);
+  } catch (lockErr) {
+    return createJsonResponse({
+      status: "error",
+      message: "Server is temporarily busy processing other requests. Please try again in a moment."
+    });
+  }
+  try {
+    return actionFn();
+  } finally {
+    try {
+      lock.releaseLock();
+    } catch (e) {}
+  }
 }
 
 /**
@@ -146,7 +188,11 @@ function getAdminSpreadsheet() {
       Logger.log("Could not open Admin Spreadsheet by ID, using active spreadsheet: " + e.toString());
     }
   }
-  return SpreadsheetApp.getActiveSpreadsheet();
+  var active = null;
+  try {
+    active = SpreadsheetApp.getActiveSpreadsheet();
+  } catch (e) {}
+  return active || getMembersSpreadsheet();
 }
 
 /**
@@ -245,7 +291,9 @@ function doPost(e) {
     // Direct Form Submission from PokkaVau/WCC_MemberShip_Form-V2-
     if (action === "submitform" || (!action && (contents.name_bn || contents.name_en || (e && e.parameter && (e.parameter.name_bn || e.parameter.name_en))))) {
       var formParams = Object.assign({}, (e && e.parameter) || {}, contents || {});
-      var formResp = handleNewFormSubmission(memSS, adminSS, formParams);
+      var formResp = withScriptLock_(function() {
+        return handleNewFormSubmission(memSS, adminSS, formParams);
+      });
       invalidateMembersCache();
       return formResp;
     }
@@ -256,17 +304,23 @@ function doPost(e) {
         return handleLogin(memSS, adminSS, contents);
 
       case "registermember":
-        resp = handleRegisterMember(memSS, adminSS, contents);
+        resp = withScriptLock_(function() {
+          return handleRegisterMember(memSS, adminSS, contents);
+        });
         invalidateMembersCache();
         return resp;
 
       case "submitform":
-        resp = handleNewFormSubmission(memSS, adminSS, contents);
+        resp = withScriptLock_(function() {
+          return handleNewFormSubmission(memSS, adminSS, contents);
+        });
         invalidateMembersCache();
         return resp;
 
       case "updatememberprofile":
-        resp = handleMemberSelfUpdate(memSS, adminSS, contents);
+        resp = withScriptLock_(function() {
+          return handleMemberSelfUpdate(memSS, adminSS, contents);
+        });
         invalidateMembersCache();
         return resp;
 
@@ -274,24 +328,32 @@ function doPost(e) {
       case "uploadprofilephot": // Handles accidental trailing truncation
       case "photoupload":
       case "uploadphoto":
-        resp = handlePhotoUpload(memSS, adminSS, contents);
+        resp = withScriptLock_(function() {
+          return handlePhotoUpload(memSS, adminSS, contents);
+        });
         invalidateMembersCache();
         return resp;
 
       case "updatestatus":
-        resp = handleUpdateStatus(memSS, adminSS, contents);
+        resp = withScriptLock_(function() {
+          return handleUpdateStatus(memSS, adminSS, contents);
+        });
         invalidateMembersCache();
         return resp;
 
       case "deletemember":
       case "deletemembers":
       case "bulkdeletemembers":
-        resp = handleDeleteMembers(memSS, adminSS, contents);
+        resp = withScriptLock_(function() {
+          return handleDeleteMembers(memSS, adminSS, contents);
+        });
         invalidateMembersCache();
         return resp;
 
       case "createadmin":
-        return handleCreateAdmin(adminSS, contents);
+        return withScriptLock_(function() {
+          return handleCreateAdmin(adminSS, contents);
+        });
 
       case "logaudit":
         return handleCustomAuditLog(adminSS, contents);
@@ -301,7 +363,9 @@ function doPost(e) {
         return handleRequestPasswordReset(memSS, adminSS, contents);
 
       case "resetpassword":
-        resp = handleResetPassword(memSS, adminSS, contents);
+        resp = withScriptLock_(function() {
+          return handleResetPassword(memSS, adminSS, contents);
+        });
         invalidateMembersCache();
         return resp;
 
@@ -331,7 +395,7 @@ function handleLogin(memSS, adminSS, payload) {
 
   // Rate Limiting: max 10 failed login attempts per 15 minutes per username
   var rateLimitKey = "rl_login_" + username.replace(/[^a-zA-Z0-9]/g, "_");
-  if (!checkRateLimit(rateLimitKey, 10, 900)) {
+  if (isRateLimited(rateLimitKey, 10)) {
     return createJsonResponse({
       status: "error",
       message: "Too many failed login attempts. Account temporarily locked for 15 minutes."
@@ -362,6 +426,7 @@ function handleLogin(memSS, adminSS, payload) {
         isAdminAccount = true;
         var rowStatus = String(aRow[statusIdx] || "Active").trim();
         if (rowStatus.toLowerCase() === "inactive") {
+          recordFailedAttempt(rateLimitKey, 900);
           return createJsonResponse({ status: "error", message: "This administrative account has been deactivated." });
         }
 
@@ -439,6 +504,7 @@ function handleLogin(memSS, adminSS, payload) {
         message: "This account belongs to a WCC Member. Please switch to the 'Member Login' tab to sign in."
       });
     }
+    recordFailedAttempt(rateLimitKey, 900);
     return createJsonResponse({
       status: "error",
       message: "Invalid administrator email or password. Please check your credentials."
@@ -584,6 +650,7 @@ function handleLogin(memSS, adminSS, payload) {
           }
         });
       } else {
+        recordFailedAttempt(rateLimitKey, 900);
         return createJsonResponse({
           status: "error",
           message: "Incorrect password. If this is your first time logging in, please use default password: wcc2026"
@@ -599,6 +666,7 @@ function handleLogin(memSS, adminSS, payload) {
     });
   }
 
+  recordFailedAttempt(rateLimitKey, 900);
   return createJsonResponse({
     status: "error",
     message: "Invalid Member ID, email, phone, or password. Please verify your credentials."
@@ -1901,94 +1969,114 @@ function getMembersList(memSS, adminSS) {
     Logger.log("Cache read skip: " + e);
   }
 
-  var sheet = getMembersSheet(memSS);
-  if (!sheet) {
-    return createJsonResponse({
-      status: "error",
-      message: "Spreadsheet or sheet tab could not be opened. Please verify that your Google Sheet has at least one tab or set WCC_MEMBERS_SPREADSHEET_ID."
-    });
-  }
-
-  var data = sheet.getDataRange().getValues();
-  if (data.length <= 1) {
-    var emptyResp = JSON.stringify({ status: "success", count: 0, members: [] });
-    return ContentService.createTextOutput(emptyResp).setMimeType(ContentService.MimeType.JSON);
-  }
-
-  var headers = data[0];
-  var members = [];
-
-  // Index finders for key columns
-  var idCol = getColIndex(headers, ["member id", "memberid"]);
-  var timestampCol = getColIndex(headers, ["timestamp"]);
-  var statusCol = getColIndex(headers, ["status", "membership status"]);
-
-  // Fetch status map from Member_Auth if exists
-  var authStatusMap = {};
+  // 2. Concurrency protection: Double-checked lock so 50 concurrent queries don't hit Sheet API simultaneously
+  var readLock = null;
+  var hasReadLock = false;
   try {
-    var authSheet = adminSS.getSheetByName(MEMBER_AUTH_TAB_NAME);
-    if (authSheet && authSheet.getLastRow() > 1) {
-      var aData = authSheet.getDataRange().getValues();
-      var aEmailIdx = getColIndex(aData[0], ["email"]);
-      var aStatusIdx = getColIndex(aData[0], ["status"]);
-      for (var a = 1; a < aData.length; a++) {
-        var aEmail = String(aData[a][aEmailIdx] || "").trim().toLowerCase();
-        if (aEmail) authStatusMap[aEmail] = String(aData[a][aStatusIdx] || "Active");
+    readLock = LockService.getScriptLock();
+    hasReadLock = readLock.tryLock(5000);
+    if (hasReadLock) {
+      var reCached = CacheService.getScriptCache().get("wcc_members_cache_v2");
+      if (reCached) {
+        return ContentService.createTextOutput(reCached).setMimeType(ContentService.MimeType.JSON);
       }
     }
-  } catch (e) {
-    Logger.log("Auth status read optional skip: " + e);
-  }
+  } catch (e) {}
 
-  for (var i = 1; i < data.length; i++) {
-    var row = data[i];
-    if (row.join("").trim() === "") continue;
-
-    var obj = {};
-    for (var j = 0; j < headers.length; j++) {
-      var h = String(headers[j]).trim();
-      var val = row[j];
-
-      // Exclude any password or salt columns
-      if (h.toLowerCase() === "passwordhash" || h.toLowerCase() === "salt" || h.toLowerCase() === "password") continue;
-
-      if (val instanceof Date) {
-        val = Utilities.formatDate(val, Session.getScriptTimeZone(), "yyyy-MM-dd");
-      }
-      obj[h] = val !== undefined && val !== null ? String(val).trim() : "";
-    }
-
-    // Auto generate Member ID if not present in sheet
-    if (idCol === -1 || !obj[headers[idCol]]) {
-      var year = "2026";
-      var tsVal = timestampCol !== -1 ? row[timestampCol] : new Date();
-      if (tsVal instanceof Date) {
-        year = Utilities.formatDate(tsVal, Session.getScriptTimeZone(), "yyyy");
-      }
-      obj["Member ID"] = "WCC-" + year + "-" + ("000" + i).slice(-4);
-    }
-
-    // Status: Check column in sheet, else check Member_Auth map, else default to "Active"
-    var rowEmail = String(obj["Email"] || "").toLowerCase();
-    if (statusCol === -1 || !obj[headers[statusCol]]) {
-      obj["Status"] = authStatusMap[rowEmail] || "Active";
-    }
-
-    members.push(obj);
-  }
-
-  var responseJson = JSON.stringify({ status: "success", count: members.length, members: members });
-
-  // Store in CacheService for 180 seconds (3 mins) if payload size < 95KB
   try {
-    if (responseJson.length < 95000) {
-      CacheService.getScriptCache().put("wcc_members_cache_v2", responseJson, 180);
+    var sheet = getMembersSheet(memSS);
+    if (!sheet) {
+      return createJsonResponse({
+        status: "error",
+        message: "Spreadsheet or sheet tab could not be opened. Please verify that your Google Sheet has at least one tab or set WCC_MEMBERS_SPREADSHEET_ID."
+      });
     }
-  } catch (e) {
-    Logger.log("Cache write skip: " + e);
-  }
 
-  return ContentService.createTextOutput(responseJson).setMimeType(ContentService.MimeType.JSON);
+    var data = sheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      var emptyResp = JSON.stringify({ status: "success", count: 0, members: [] });
+      return ContentService.createTextOutput(emptyResp).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    var headers = data[0];
+    var members = [];
+
+    // Index finders for key columns
+    var idCol = getColIndex(headers, ["member id", "memberid"]);
+    var timestampCol = getColIndex(headers, ["timestamp"]);
+    var statusCol = getColIndex(headers, ["status", "membership status"]);
+
+    // Fetch status map from Member_Auth if exists
+    var authStatusMap = {};
+    try {
+      var authSheet = adminSS.getSheetByName(MEMBER_AUTH_TAB_NAME);
+      if (authSheet && authSheet.getLastRow() > 1) {
+        var aData = authSheet.getDataRange().getValues();
+        var aEmailIdx = getColIndex(aData[0], ["email"]);
+        var aStatusIdx = getColIndex(aData[0], ["status"]);
+        for (var a = 1; a < aData.length; a++) {
+          var aEmail = String(aData[a][aEmailIdx] || "").trim().toLowerCase();
+          if (aEmail) authStatusMap[aEmail] = String(aData[a][aStatusIdx] || "Active");
+        }
+      }
+    } catch (e) {
+      Logger.log("Auth status read optional skip: " + e);
+    }
+
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      if (row.join("").trim() === "") continue;
+
+      var obj = {};
+      for (var j = 0; j < headers.length; j++) {
+        var h = String(headers[j]).trim();
+        var val = row[j];
+
+        // Exclude any password or salt columns
+        if (h.toLowerCase() === "passwordhash" || h.toLowerCase() === "salt" || h.toLowerCase() === "password") continue;
+
+        if (val instanceof Date) {
+          val = Utilities.formatDate(val, Session.getScriptTimeZone(), "yyyy-MM-dd");
+        }
+        obj[h] = val !== undefined && val !== null ? String(val).trim() : "";
+      }
+
+      // Auto generate Member ID if not present in sheet
+      if (idCol === -1 || !obj[headers[idCol]]) {
+        var year = "2026";
+        var tsVal = timestampCol !== -1 ? row[timestampCol] : new Date();
+        if (tsVal instanceof Date) {
+          year = Utilities.formatDate(tsVal, Session.getScriptTimeZone(), "yyyy");
+        }
+        obj["Member ID"] = "WCC-" + year + "-" + ("000" + i).slice(-4);
+      }
+
+      // Status: Check column in sheet, else check Member_Auth map, else default to "Active"
+      var rowEmail = String(obj["Email"] || "").toLowerCase();
+      if (statusCol === -1 || !obj[headers[statusCol]]) {
+        obj["Status"] = authStatusMap[rowEmail] || "Active";
+      }
+
+      members.push(obj);
+    }
+
+    var responseJson = JSON.stringify({ status: "success", count: members.length, members: members });
+
+    // Store in CacheService for 180 seconds (3 mins) if payload size < 95KB
+    try {
+      if (responseJson.length < 95000) {
+        CacheService.getScriptCache().put("wcc_members_cache_v2", responseJson, 180);
+      }
+    } catch (e) {
+      Logger.log("Cache write skip: " + e);
+    }
+
+    return ContentService.createTextOutput(responseJson).setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    if (hasReadLock && readLock) {
+      try { readLock.releaseLock(); } catch (e) {}
+    }
+  }
 }
 
 function getAuditLogs(adminSS) {

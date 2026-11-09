@@ -114,7 +114,7 @@ const PDF_GENERATOR = {
       box-sizing: border-box;
       background-color: #FFFFFF;
       color: #1E293B;
-      font-family: 'Hind Siliguri', 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Kalpurush', 'Hind Siliguri', 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       margin: 0;
       padding: 0;
       overflow: hidden;

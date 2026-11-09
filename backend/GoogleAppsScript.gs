@@ -1318,11 +1318,19 @@ function handleRequestPasswordReset(memSS, adminSS, payload) {
         '<p style="text-align: center; margin: 20px 0 0 0; color: #94a3b8; font-size: 12px;">&copy; ' + new Date().getFullYear() + ' We Can Change (WCC). All rights reserved.</p>' +
       '</div>';
 
-      MailApp.sendEmail({
-        to: targetMember.email,
-        subject: emailSubject,
-        htmlBody: emailHtml
-      });
+      try {
+        MailApp.sendEmail({
+          to: targetMember.email,
+          subject: emailSubject,
+          htmlBody: emailHtml
+        });
+      } catch (e1) {
+        try {
+          GmailApp.sendEmail(targetMember.email, emailSubject, "", { htmlBody: emailHtml });
+        } catch (e2) {
+          throw e1;
+        }
+      }
 
       return createJsonResponse({
         status: "success",
@@ -1332,10 +1340,13 @@ function handleRequestPasswordReset(memSS, adminSS, payload) {
         message: "A 6-digit verification code has been sent to " + maskedEmail + ". Please check your inbox (and spam folder)."
       });
     } catch (mailErr) {
-      Logger.log("MailApp.sendEmail error: " + mailErr);
+      Logger.log("sendEmail error: " + mailErr);
       return createJsonResponse({
         status: "error",
-        message: "Could not send email directly (" + mailErr.toString() + "). Please choose 'Verify Identity via Phone / DOB' to reset instantly."
+        code: "EMAIL_AUTH_REQUIRED",
+        memberId: targetMember.memberId,
+        name: targetMember.name,
+        message: "Could not send email directly. Please choose 'Verify Identity via Phone / DOB' to reset instantly."
       });
     }
   }
@@ -2284,4 +2295,13 @@ function getColIndex(headers, candidates) {
 function createJsonResponse(payload) {
   return ContentService.createTextOutput(JSON.stringify(payload))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Run this function once from Apps Script editor to grant script.send_mail permission
+ */
+function authorizeEmailService() {
+  var quota = MailApp.getRemainingDailyQuota();
+  Logger.log("MailApp authorization active. Daily email quota remaining: " + quota);
+  return quota;
 }
